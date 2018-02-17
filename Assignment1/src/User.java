@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashSet;
@@ -16,12 +17,24 @@ public class User
 	Socket clockwiseNeighbor;
 	Socket counterClockwiseNeighbor;
 	
+	boolean senderOK;
+	boolean receiverOK;
+	
 	ReentrantLock counterClockwiseLock;
 	
 	HashSet<Integer> messages;
 	
 	String myHost;
 	int myPort;
+	
+	int START_WITH_1_NODE_NETWORK = 1;
+	int START_WITH_AVERAGE_NETWORK = 2;
+	int FORWARDING_PORT_FOR_CONTACT = 3;
+	int REGULAR_MESSAGE = 4;
+	int QUIT_WITH_2_NODE_NETWORK = 5;
+	int QUIT_NOTIFICATION = 6;
+	int QUIT_WITH_PORT = 7;
+	
 	
 
 	public static void main(String[] args, int argc) 
@@ -70,8 +83,11 @@ public class User
 		
 		// Successfully added myself to the network
 		Thread sender = new Thread(new Sender());
+		this.senderOK = true;
 		sender.start();
+		
 		Thread receiver = new Thread(new Receiver());
+		this.receiverOK = true;
 		receiver.start();
 		
 		// At this time, the sender and receiver are doing their jobs
@@ -91,22 +107,39 @@ public class User
 		
 	}
 	
-	private boolean dealWithNewUser(Socket incomingUser) throws InterruptedException
+	private boolean dealWithNewUser(Socket incomingUser) throws InterruptedException, IOException
 	{
-		// Contact counter clockwise neighbor and have it make contact with incomingUSer
-		this.toCounterClockwiseNeighbor.put(new Message('s', incomingUser.getPort(), 0));
+		ObjectOutputStream output = new ObjectOutputStream(incomingUser.getOutputStream());
 		
-		// Disconnect from my counter clockwise neighbor
-		while(!this.toCounterClockwiseNeighbor.isEmpty());
-		
-		this.counterClockwiseLock.lock();
-		
-		this.counterClockwiseNeighbor.close();
-		
-		// Set the incomingUser to my new clockwise neighbor
-		
-		
-		return false;
+		// If I am the only node in the network, both directions are set to the new node.
+		if(!this.clockwiseNeighbor.isConnected())
+		{
+			// Tell new user that we are the only node in network.
+			output.writeObject(new Message(this.START_WITH_1_NODE_NETWORK, "", 0));
+			
+			this.clockwiseNeighbor = incomingUser;
+			this.counterClockwiseNeighbor = incomingUser;
+			
+		}
+		else
+		{
+			// Send connecting user a message that it will expect a connection from neighbor
+			output.writeObject(new Message(this.START_WITH_AVERAGE_NETWORK, "", 0));
+			
+			// Contact counter clockwise neighbor and have it make contact with incomingUSer
+			this.toCounterClockwiseNeighbor.put
+				(new Message(this.FORWARDING_PORT_FOR_CONTACT, incomingUser.getPort(), 0));
+			
+			// Disconnect from my counter clockwise neighbor once all messages are sent
+			// TODO
+			while(!this.toCounterClockwiseNeighbor.isEmpty());		
+			try {this.counterClockwiseNeighbor.close();} catch (Exception e) {}
+			
+			// Update counter clockwise neighbor to the new user
+			this.counterClockwiseNeighbor = incomingUser;			
+		}
+		output.close();
+		return true;
 	}
 	
 	private boolean addMyselfToNetwork(String connectingHost, int connectingPort, ServerSocket listener)
@@ -123,6 +156,31 @@ public class User
 			return false;
 		}
 	}
+	
+//	// TODO: Algorithm needs tuning.
+//	private boolean removeMyselfFromNetwork() throws InterruptedException
+//	{
+//		// If there are only 2 nodes in the network.
+//		if(this.counterClockwiseNeighbor.getPort() == this.clockwiseNeighbor.getPort())
+//		{
+//			this.toCounterClockwiseNeighbor.put(new Message(this.QUIT_WITH_2_NODE_NETWORK, "", 0));
+//			while(!this.toCounterClockwiseNeighbor.isEmpty());		
+//			try {this.counterClockwiseNeighbor.close(); this.clockwiseNeighbor.close();} catch (Exception e) {}
+//		}
+//		//	 If there are more than 2 nodes in the network.
+//		else if(this.counterClockwiseNeighbor.isConnected())
+//		{
+//			// Tell counter clockwise neighbor to contact clockwise neighbor to make a connection
+//			this.toCounterClockwiseNeighbor.put(
+//					new Message(this.QUIT_WITH_PORT, this.clockwiseNeighbor.getPort(), 0));
+//			this.toClockwiseNeighbor.put(new Message(this.QUIT_NOTIFICATION, "", 0));
+//			
+//			
+//		}
+//		this.senderOK = false;
+//		this.receiverOK = false;
+//		return true;
+//	}
 	
 	
 	private class Sender implements Runnable
@@ -149,17 +207,17 @@ public class User
 
 	private class Message
 	{
-		char typeFlag;
+		int typeFlag;
 		String message;
 		int id;
 		
-		public Message(char typeFlag, String message, int id)
+		public Message(int typeFlag, String message, int id)
 		{
 			this.typeFlag = typeFlag;
 			this.message = message;
 			this.id = id;
 		}
-		public Message(char typeFlag, int port, int id)
+		public Message(int typeFlag, int port, int id)
 		{
 			this.typeFlag = typeFlag;
 			this.message = Integer.toString(port);
