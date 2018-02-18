@@ -17,7 +17,7 @@ public class User
 	Socket clockwiseNeighbor;
 	Socket counterClockwiseNeighbor;
 	
-	boolean senderOK;
+	public boolean senderOK;
 	boolean receiverOK;
 	
 	ReentrantLock counterClockwiseLock;
@@ -183,18 +183,63 @@ public class User
 //	}
 	
 	
-	private class Sender implements Runnable
+	private class Sender extends User implements Runnable
 	{
 
 		@Override
 		public void run() 
 		{
+			ObjectOutputStream clockwise;
+			int clockwisePort = super.clockwiseNeighbor.getPort();
+			ObjectOutputStream counterClockwise;
+			int counterClockwisePort = super.counterClockwiseNeighbor.getPort();
 			
+			try {
+				 clockwise = new ObjectOutputStream(
+						super.clockwiseNeighbor.getOutputStream());
+				 counterClockwise = new ObjectOutputStream(
+						super.counterClockwiseNeighbor.getOutputStream());
+			} catch (IOException e) {
+				System.err.println("Unable to create output streams");
+				return;
+			}
+			
+			while(super.senderOK)
+			{
+				// If the sockets have changed, we need to get new output streams 
+				try{
+					if(clockwisePort != super.clockwiseNeighbor.getPort())
+					{
+						clockwise = new ObjectOutputStream(
+								super.clockwiseNeighbor.getOutputStream()); 
+						clockwisePort = super.clockwiseNeighbor.getPort();
+					}
+					if(counterClockwisePort != super.counterClockwiseNeighbor.getPort())
+					{
+						clockwise = new ObjectOutputStream(
+								super.counterClockwiseNeighbor.getOutputStream()); 
+						clockwisePort = super.clockwiseNeighbor.getPort();
+					}
+				}catch(Exception e){System.err.println("Error updating output streams");}
+				
+				if(!super.toClockwiseNeighbor.isEmpty())
+				{
+					try {
+						clockwise.writeObject(super.toClockwiseNeighbor.take());
+					} catch (Exception e) {System.err.println("Error sending to clockwise");}
+				}
+				if(!super.toCounterClockwiseNeighbor.isEmpty())
+				{
+					try {
+						counterClockwise.writeObject(super.toCounterClockwiseNeighbor.take());
+					} catch (Exception e) {System.err.println("Error sending to counter clockwise");}
+				}
+			}
 		}
 		
 	}
 	
-	private class Receiver implements Runnable
+	private class Receiver extends User implements Runnable
 	{
 
 		@Override
