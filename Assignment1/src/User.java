@@ -37,12 +37,46 @@ public class User
 	
 	
 
-	public static void main(String[] args, int argc) 
-	{
-		
-		
+public static void main(String[] args, int argc)
+    {
+        //main start all threads needed
 
-	}
+
+        //after finishing set up
+        System.out.println("Node started. -help for help");
+        Scanner myReader = new Scanner(System.in);
+        while (true) {
+            String userInput = myReader.nextLine();
+            String[] userInputArr = userInput.split(" "); //1st word before a space is the command
+
+            //possible commands: "-help" "-quit" "-send"
+            if (userInputArr[0].equalsIgnoreCase("-help")) {
+                System.out.println("Possible commands: \n-help for help \n -send to send a message to everyone in the network \n -quit to leave the network");
+            }
+            if (userInputArr[0].equalsIgnoreCase("-send"))
+            {
+                //1st system checks if the message is not empty.
+                if (userInputArr.length <= 1)
+                {
+                    System.out.println("Error empty messages cannot be sent");
+                }
+                else
+                {
+                    //System starts thread and send message to both neighbors.
+
+                    //message sent
+                }
+            }
+
+            if (userInputArr[0].equalsIgnoreCase("-quit"))
+            {
+                //all connections are closed and then program terminates
+
+                //end of program. Node "dies"
+                break;
+            }
+        }
+    }
 	
 	/*
 	 * 0: MY user host name
