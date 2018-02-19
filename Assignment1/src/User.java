@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashSet;
@@ -9,9 +10,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class User 
+
+//TODO REPLACE ALL INSTANCES OF SUPER WITH AN OBJECT
+public class User implements Serializable
 {
-	
 	BlockingQueue<Message> toClockwiseNeighbor;
 	BlockingQueue<Message> toCounterClockwiseNeighbor;
 	
@@ -38,9 +40,11 @@ public class User
 	
 	
 
-	public static void main(String[] args, int argc) 
+	public static void main(String[] args) throws IOException 
 	{
-		
+		System.out.println("Starting");
+		User user = new User();
+		user.run(args);
 		
 
 	}
@@ -51,7 +55,7 @@ public class User
 	 * 2: CONNECTING NODES host name
 	 * 3: CONNECTING NODES port number
 	 */
-	public void run(String[] args, int argc) throws IOException
+	public void run(String[] args) throws IOException
 	{
 		this.toClockwiseNeighbor = new ArrayBlockingQueue<Message>(1024);
 		this.toCounterClockwiseNeighbor = new ArrayBlockingQueue<Message>(1024);
@@ -69,6 +73,7 @@ public class User
 		
 		ServerSocket listener = new ServerSocket(this.myPort);
 		
+		int argc = args.length;
 		
 		
 		// If more than 2 arguments is passed in, it means this 
@@ -83,20 +88,23 @@ public class User
 		}
 		
 		// Successfully added myself to the network
-		Thread sender = new Thread(new Sender());
+		Thread sender = new Thread(new Sender(this));
 		this.senderOK = true;
 		sender.start();
 		
-		Thread receiver = new Thread(new Receiver());
+		Thread clockwiseReceiver = new Thread(new Receiver(true));
+		Thread counterClockwiseReceiver = new Thread(new Receiver(false));
 		this.receiverOK = true;
-		receiver.start();
+		clockwiseReceiver.start();
+		counterClockwiseReceiver.start();
 		
 		// At this time, the sender and receiver are doing their jobs
 		// Now we have to listen for other users contacting myself to get added to the network.
-		@SuppressWarnings("resource")
 		Socket incomingUser = new Socket();
 		while (true) {
+			System.out.println("Listening fro users");
             incomingUser = listener.accept();
+            System.out.println("User found");
             
             try {
 				dealWithNewUser(incomingUser);
@@ -104,19 +112,26 @@ public class User
 				System.err.println("Could not add new node to the network");
 			}
         }
-		
-		
 	}
 	
-	private boolean dealWithNewUser(Socket incomingUser) throws InterruptedException, IOException
+	private boolean dealWithNewUser( Socket incomingUser) throws InterruptedException, IOException
 	{
 		ObjectOutputStream output = new ObjectOutputStream(incomingUser.getOutputStream());
 		
 		// If I am the only node in the network, both directions are set to the new node.
 		if(!this.clockwiseNeighbor.isConnected())
 		{
+			System.out.println("Adding first neighbor");
 			// Tell new user that we are the only node in network.
-			output.writeObject(new Message(this.START_WITH_1_NODE_NETWORK, "", 0));
+			try {
+				Message temp = new Message(this.START_WITH_1_NODE_NETWORK, "", 0);
+				System.out.println(temp.typeFlag);
+				output.writeObject(temp);
+				output.flush();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			
 			this.clockwiseNeighbor = incomingUser;
 			this.counterClockwiseNeighbor = incomingUser;
@@ -124,6 +139,7 @@ public class User
 		}
 		else
 		{
+			System.out.println("Adding a node");
 			// Send connecting user a message that it will expect a connection from neighbor
 			output.writeObject(new Message(this.START_WITH_AVERAGE_NETWORK, "", 0));
 			
@@ -148,11 +164,12 @@ public class User
 		ObjectInputStream input;
 		try{
 			// Establish a socket with the node we want to enter into the network 
-			this.clockwiseNeighbor = new Socket(connectingHost, connectingPort);
+			this.clockwiseNeighbor = new Socket("localhost", connectingPort);
 			
 			// We now listen for a message telling us how to connect.
 			input = new ObjectInputStream(this.clockwiseNeighbor.getInputStream());
-			Message message = (Message) input.readObject();
+			Object temp = input.readObject();
+			Message message = (Message) temp;
 			
 			// If me and the contacting node are the only ones in the network.
 			if(message.typeFlag == this.START_WITH_1_NODE_NETWORK)
@@ -197,13 +214,21 @@ public class User
 //	}
 	
 	
-	private class Sender extends User implements Runnable
+	private class Sender extends User implements Runnable, Serializable
 	{
-
+		User user;
+		public Sender(User user)
+		{
+			this.user = user;
+		}
 		@Override
 		public void run() 
 		{
+			System.out.println("Sender created");
 			ObjectOutputStream clockwise;
+			System.out.println(user.myHost);
+			while(super.clockwiseNeighbor == null);
+			System.out.println("starting to send stuff");
 			int clockwisePort = super.clockwiseNeighbor.getPort();
 			ObjectOutputStream counterClockwise;
 			int counterClockwisePort = super.counterClockwiseNeighbor.getPort();
@@ -253,7 +278,7 @@ public class User
 		
 	}
 	
-	private class Receiver extends User implements Runnable
+	private class Receiver extends User implements Runnable, Serializable
 	{
 		boolean clockwise;
 		public Receiver(boolean isClockwise)
@@ -264,6 +289,8 @@ public class User
 		@Override
 		public void run() 
 		{
+			while(super.clockwiseNeighbor == null);
+			System.out.println("Starting to listen for messages");
 			ObjectInputStream input;
 			try
 			{
@@ -347,26 +374,6 @@ public class User
 					System.err.println("Error listening and adding new neighbor QN");
 				}
 			}
-		}
-	}
-
-	private class Message
-	{
-		int typeFlag;
-		String message;
-		int id;
-		
-		public Message(int typeFlag, String message, int id)
-		{
-			this.typeFlag = typeFlag;
-			this.message = message;
-			this.id = id;
-		}
-		public Message(int typeFlag, int port, int id)
-		{
-			this.typeFlag = typeFlag;
-			this.message = Integer.toString(port);
-			this.id = id;
 		}
 	}
 }
