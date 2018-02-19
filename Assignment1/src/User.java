@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -144,13 +145,26 @@ public class User
 	
 	private boolean addMyselfToNetwork(String connectingHost, int connectingPort, ServerSocket listener)
 	{
+		ObjectInputStream input;
 		try{
 			// Establish a socket with the node we want to enter into the network 
 			this.clockwiseNeighbor = new Socket(connectingHost, connectingPort);
 			
-			// Start listening for the connecting node to make the moves to connect
-			this.counterClockwiseNeighbor = listener.accept();
-
+			// We now listen for a message telling us how to connect.
+			input = new ObjectInputStream(this.clockwiseNeighbor.getInputStream());
+			Message message = (Message) input.readObject();
+			
+			// If me and the contacting node are the only ones in the network.
+			if(message.typeFlag == this.START_WITH_1_NODE_NETWORK)
+			{
+				this.counterClockwiseNeighbor = this.clockwiseNeighbor;
+			}
+			// If we need to listen for another node to make contact.
+			else
+			{
+				this.counterClockwiseNeighbor = listener.accept();
+			}
+			
 			return true;
 		}catch(Exception e){
 			return false;
@@ -168,7 +182,7 @@ public class User
 //			try {this.counterClockwiseNeighbor.close(); this.clockwiseNeighbor.close();} catch (Exception e) {}
 //		}
 //		//	 If there are more than 2 nodes in the network.
-//		else if(this.counterClockwiseNeighbor.isConnected())
+//		else if(!this.counterClockwiseNeighbor.isClosed())
 //		{
 //			// Tell counter clockwise neighbor to contact clockwise neighbor to make a connection
 //			this.toCounterClockwiseNeighbor.put(
@@ -241,13 +255,99 @@ public class User
 	
 	private class Receiver extends User implements Runnable
 	{
-
+		boolean clockwise;
+		public Receiver(boolean isClockwise)
+		{
+			this.clockwise = isClockwise;
+		}
+		
 		@Override
 		public void run() 
 		{
+			ObjectInputStream input;
+			try
+			{
+				if(clockwise)
+				{
+					input = new ObjectInputStream(super.clockwiseNeighbor.getInputStream());
+				}
+				else
+				{
+					input = new ObjectInputStream(super.counterClockwiseNeighbor.getInputStream());
+				}
+				
+			}catch(Exception e){System.err.println("Couldn't setup input streams");return;}
+			
+			Message message = null;
+			while(super.receiverOK)
+			{
+				try 
+				{
+					dealWithMessage((Message) input.readObject());
+				} catch (ClassNotFoundException | IOException e) 
+				{
+					System.err.println("Error reading from the socket");
+				}
+				
+			}
 			
 		}
-		
+
+		private void dealWithMessage(Message message) 
+		{
+			if(message.typeFlag == super.REGULAR_MESSAGE)
+			{
+				System.out.println(message.message);
+			}
+			// If it's the case where out neighbor is letting us know to make a connection with a node
+			else if(message.typeFlag == super.FORWARDING_PORT_FOR_CONTACT)
+			{
+				int port = Integer.parseInt(message.message);
+				try {
+					Socket newNeighbor = new Socket("localhost", port);
+					if(!super.clockwiseNeighbor.isClosed())
+					{
+						super.clockwiseNeighbor.close();
+					}
+					super.clockwiseNeighbor = newNeighbor;
+				} catch (IOException e) {
+					System.err.println("Couldn't establish a connection with the new node");
+				}
+			}
+			else if(message.typeFlag == super.QUIT_WITH_2_NODE_NETWORK)
+			{
+				try {
+					super.clockwiseNeighbor.close();
+					super.counterClockwiseNeighbor.close();
+				} catch (IOException e) {
+					System.err.println("Couldn't close the connections to the neighbors");
+				}
+			}
+			else if(message.typeFlag == super.QUIT_WITH_PORT)
+			{
+				int port = Integer.parseInt(message.message);
+				try {
+					Socket newNeighbor = new Socket("localhost", port);
+					super.clockwiseNeighbor.close();
+					super.clockwiseNeighbor = newNeighbor;
+				} catch (IOException e) {
+					System.err.println("Couldn't set a node as my new neighbor QWP");
+				}
+			}
+			else if(message.typeFlag == super.QUIT_NOTIFICATION)
+			{
+				Socket newNeighbor;
+				try {
+					ServerSocket listener = new ServerSocket();
+					newNeighbor = listener.accept();
+					super.counterClockwiseNeighbor.close();
+					super.counterClockwiseNeighbor = newNeighbor;
+					listener.close();
+				} catch (IOException e) {
+					System.err.println("Error listening and adding new neighbor QN");
+				}
+			}
+		}
 	}
 
 	private class Message
