@@ -7,29 +7,42 @@ import java.net.Socket;
 import java.util.HashSet;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.LinkedBlockingQueue;
 
 
-//TODO REPLACE ALL INSTANCES OF SUPER WITH AN OBJECT
 public class User implements Serializable
 {
-	BlockingQueue<Message> toClockwiseNeighbor;
-	BlockingQueue<Message> toCounterClockwiseNeighbor;
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	LinkedBlockingQueue<Message> toClockwiseNeighbor;
+	LinkedBlockingQueue<Message> toCounterClockwiseNeighbor;
 	
 	Socket clockwiseNeighbor;
 	Socket counterClockwiseNeighbor;
 	
-	public boolean senderOK;
-	boolean receiverOK;
+	int clockWisePort;
+	int counterClockWisePort;
 	
-	ReentrantLock counterClockwiseLock;
+	ObjectOutputStream clockwiseOutput;
+	ObjectOutputStream counterClockwiseOutput;
+	
+	ObjectInputStream clockwiseInput;
+	ObjectInputStream counterClockwiseInput;
+	
+	public boolean senderOK;
+	boolean cReceiverOK;
+	boolean ccReceiverOK;
+	
+	int numReceivers;
 	
 	HashSet<Integer> messages;
 	
 	String myHost;
 	int myPort;
 	
+	int MY_PORT_NUMBER = 0;
 	int START_WITH_1_NODE_NETWORK = 1;
 	int START_WITH_AVERAGE_NETWORK = 2;
 	int FORWARDING_PORT_FOR_CONTACT = 3;
@@ -37,7 +50,7 @@ public class User implements Serializable
 	int QUIT_WITH_2_NODE_NETWORK = 5;
 	int QUIT_NOTIFICATION = 6;
 	int QUIT_WITH_PORT = 7;
-	
+
 	
 
 	public static void main(String[] args) throws IOException 
@@ -57,15 +70,17 @@ public class User implements Serializable
 	 */
 	public void run(String[] args) throws IOException
 	{
-		this.toClockwiseNeighbor = new ArrayBlockingQueue<Message>(1024);
-		this.toCounterClockwiseNeighbor = new ArrayBlockingQueue<Message>(1024);
+		this.toClockwiseNeighbor = new LinkedBlockingQueue<Message>(40);
+		this.toCounterClockwiseNeighbor = new LinkedBlockingQueue<Message>(40);
 		
 		this.clockwiseNeighbor = new Socket();
 		this.counterClockwiseNeighbor = new Socket();
 		
-		//	This lock is used to make sure when a new node is added, the 
-		this.counterClockwiseLock = new ReentrantLock();
-		
+		this.clockwiseInput = null;
+		this.clockwiseOutput = null;
+		this.counterClockwiseInput = null;
+		this.counterClockwiseOutput = null;
+				
 		this.messages = new HashSet<Integer>();
 		
 		this.myHost = args[0];
@@ -86,28 +101,48 @@ public class User implements Serializable
 				return;
 			}
 		}
-		
+		System.out.println("I'M IN NETWORK");
 		// Successfully added myself to the network
 		Thread sender = new Thread(new Sender(this));
 		this.senderOK = true;
 		sender.start();
 		
-		Thread clockwiseReceiver = new Thread(new Receiver(true));
-		Thread counterClockwiseReceiver = new Thread(new Receiver(false));
-		this.receiverOK = true;
+		Thread clockwiseReceiver = new Thread(new Receiver(true, this));
+		this.cReceiverOK = true;
 		clockwiseReceiver.start();
-		counterClockwiseReceiver.start();
+		this.numReceivers = 1;
+		
+		//If I am connecting to a network with more than 2 nodes.
+		if(this.counterClockwiseNeighbor.isConnected())
+		{
+			Thread counterClockwiseReceiver = new Thread(new Receiver(false, this));
+			this.ccReceiverOK = true;
+			counterClockwiseReceiver.start();
+			this.numReceivers = 2;
+		}
+		
+		
 		
 		// At this time, the sender and receiver are doing their jobs
 		// Now we have to listen for other users contacting myself to get added to the network.
+		@SuppressWarnings("resource")
 		Socket incomingUser = new Socket();
 		while (true) {
-			System.out.println("Listening fro users");
+			System.out.println("Listening for users");
             incomingUser = listener.accept();
+            
             System.out.println("User found");
             
             try {
-				dealWithNewUser(incomingUser);
+				boolean startThread = dealWithNewUser(incomingUser);
+				// If I am already in a network with 2 nodes and someone connects making 3
+				if(startThread)
+				{
+					Thread counterClockwiseReceiver = new Thread(new Receiver(true, this));
+					this.ccReceiverOK = true;
+					counterClockwiseReceiver.start();
+					this.numReceivers = 2;
+				}
 			} catch (InterruptedException e) {
 				System.err.println("Could not add new node to the network");
 			}
@@ -117,24 +152,29 @@ public class User implements Serializable
 	private boolean dealWithNewUser( Socket incomingUser) throws InterruptedException, IOException
 	{
 		ObjectOutputStream output = new ObjectOutputStream(incomingUser.getOutputStream());
+		ObjectInputStream input = new ObjectInputStream(incomingUser.getInputStream());
 		
-		// If I am the only node in the network, both directions are set to the new node.
+		Message message = null;
+		try {
+			message = (Message) input.readObject();
+		} catch (ClassNotFoundException e1) {}
+		int incomingUserPortNumber = Integer.parseInt(message.message);
+				
+		// If I am the only node in the network
 		if(!this.clockwiseNeighbor.isConnected())
 		{
-			System.out.println("Adding first neighbor");
+			System.out.println("ADD NEIGHBOR 1");
 			// Tell new user that we are the only node in network.
 			try {
-				Message temp = new Message(this.START_WITH_1_NODE_NETWORK, "", 0);
-				System.out.println(temp.typeFlag);
-				output.writeObject(temp);
+				message = new Message(this.START_WITH_1_NODE_NETWORK, "", 0);
+				output.writeObject(message);
 				output.flush();
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			} catch (Exception e) {}
 			
 			this.clockwiseNeighbor = incomingUser;
-			this.counterClockwiseNeighbor = incomingUser;
+			this.clockwiseOutput = output;
+			this.clockwiseInput =input;
+			this.clockWisePort = incomingUserPortNumber;
 			
 		}
 		else
@@ -143,47 +183,68 @@ public class User implements Serializable
 			// Send connecting user a message that it will expect a connection from neighbor
 			output.writeObject(new Message(this.START_WITH_AVERAGE_NETWORK, "", 0));
 			
-			// Contact counter clockwise neighbor and have it make contact with incomingUSer
-			this.toCounterClockwiseNeighbor.put
-				(new Message(this.FORWARDING_PORT_FOR_CONTACT, incomingUser.getPort(), 0));
+			// In the case we don't have a counterclockwise neighbor, there are only 2 nodes in the network.
+			if(!this.counterClockwiseNeighbor.isConnected())
+			{
+				System.out.println("Putting message in clockwise queue");
+				Message temp = new Message(this.FORWARDING_PORT_FOR_CONTACT, incomingUserPortNumber, 0);
+				this.toClockwiseNeighbor.put(temp);
+			}
+			// There are more than 2 nodes in the network.
+			else
+			{
+				System.out.println("Putting message in counter clockwise queue");
+				this.toCounterClockwiseNeighbor.put(
+						new Message(this.FORWARDING_PORT_FOR_CONTACT, incomingUserPortNumber, 0));
+			}			
 			
 			// Disconnect from my counter clockwise neighbor once all messages are sent
-			// TODO
 			while(!this.toCounterClockwiseNeighbor.isEmpty());		
-			try {this.counterClockwiseNeighbor.close();} catch (Exception e) {}
-			
+			if(this.counterClockwiseNeighbor.isConnected())
+			{
+				try {this.counterClockwiseNeighbor.close();} catch (Exception e) {}
+
+			}
 			// Update counter clockwise neighbor to the new user
-			this.counterClockwiseNeighbor = incomingUser;			
+			this.counterClockwiseNeighbor = incomingUser;	
+			this.counterClockwiseInput = input;
+			this.counterClockwiseOutput = output;
+			this.counterClockWisePort = incomingUserPortNumber;
 		}
-		output.close();
-		return true;
+		return this.clockwiseNeighbor.isConnected() && !this.counterClockwiseNeighbor.isConnected();
 	}
 	
 	private boolean addMyselfToNetwork(String connectingHost, int connectingPort, ServerSocket listener)
 	{
-		ObjectInputStream input;
 		try{
 			// Establish a socket with the node we want to enter into the network 
 			this.clockwiseNeighbor = new Socket("localhost", connectingPort);
+			this.clockwiseOutput = new ObjectOutputStream(this.clockwiseNeighbor.getOutputStream());
+			this.clockwiseInput = new ObjectInputStream(this.clockwiseNeighbor.getInputStream());
 			
-			// We now listen for a message telling us how to connect.
-			input = new ObjectInputStream(this.clockwiseNeighbor.getInputStream());
-			Object temp = input.readObject();
-			Message message = (Message) temp;
+			// Now we send the contacted user a message telling them the port number
+			Message message = new Message(
+					this.MY_PORT_NUMBER, Integer.toString(listener.getLocalPort()), 0);
+			this.clockwiseOutput.writeObject(message);
 			
-			// If me and the contacting node are the only ones in the network.
-			if(message.typeFlag == this.START_WITH_1_NODE_NETWORK)
+			message = (Message) this.clockwiseInput.readObject();
+			System.out.println("ADD_ME " +  message.toString());
+			
+			// If me and the contacting node are NOT the only ones in the network we listen for another node to make contact
+			if(message.typeFlag != this.START_WITH_1_NODE_NETWORK)
 			{
-				this.counterClockwiseNeighbor = this.clockwiseNeighbor;
-			}
-			// If we need to listen for another node to make contact.
-			else
-			{
+				System.out.println("UPDATING CC NEIGHBOR");
 				this.counterClockwiseNeighbor = listener.accept();
-			}
-			
+				System.out.println("Got the socket");
+				this.counterClockwiseOutput = new ObjectOutputStream(this.counterClockwiseNeighbor.getOutputStream());
+				this.counterClockwiseOutput.flush();
+				this.counterClockwiseInput = new ObjectInputStream(this.counterClockwiseNeighbor.getInputStream());
+				
+				
+			}			
 			return true;
 		}catch(Exception e){
+			System.out.println(e.toString());
 			return false;
 		}
 	}
@@ -192,7 +253,7 @@ public class User implements Serializable
 //	private boolean removeMyselfFromNetwork() throws InterruptedException
 //	{
 //		// If there are only 2 nodes in the network.
-//		if(this.counterClockwiseNeighbor.getPort() == this.clockwiseNeighbor.getPort())
+//		if(this.counterClockwiseNeighbor.getLocalPort() == this.clockwiseNeighbor.getLocalPort())
 //		{
 //			this.toCounterClockwiseNeighbor.put(new Message(this.QUIT_WITH_2_NODE_NETWORK, "", 0));
 //			while(!this.toCounterClockwiseNeighbor.isEmpty());		
@@ -203,7 +264,7 @@ public class User implements Serializable
 //		{
 //			// Tell counter clockwise neighbor to contact clockwise neighbor to make a connection
 //			this.toCounterClockwiseNeighbor.put(
-//					new Message(this.QUIT_WITH_PORT, this.clockwiseNeighbor.getPort(), 0));
+//					new Message(this.QUIT_WITH_PORT, this.clockwiseNeighbor.getLocalPort(), 0));
 //			this.toClockwiseNeighbor.put(new Message(this.QUIT_NOTIFICATION, "", 0));
 //			
 //			
@@ -216,6 +277,10 @@ public class User implements Serializable
 	
 	private class Sender extends User implements Runnable, Serializable
 	{
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1L;
 		User user;
 		public Sender(User user)
 		{
@@ -224,151 +289,191 @@ public class User implements Serializable
 		@Override
 		public void run() 
 		{
-			System.out.println("Sender created");
-			ObjectOutputStream clockwise;
-			System.out.println(user.myHost);
-			while(super.clockwiseNeighbor == null);
-			System.out.println("starting to send stuff");
-			int clockwisePort = super.clockwiseNeighbor.getPort();
-			ObjectOutputStream counterClockwise;
-			int counterClockwisePort = super.counterClockwiseNeighbor.getPort();
+			System.out.println("SENDER");
+			while(!user.clockwiseNeighbor.isConnected()){
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {}
+			}
+			System.out.println("SENDER_RUNNING");
 			
 			try {
-				 clockwise = new ObjectOutputStream(
-						super.clockwiseNeighbor.getOutputStream());
-				 counterClockwise = new ObjectOutputStream(
-						super.counterClockwiseNeighbor.getOutputStream());
+				if(user.clockwiseOutput == null)
+				{
+					user.clockwiseOutput = new ObjectOutputStream(user.clockwiseNeighbor.getOutputStream());
+				}
+				if(user.counterClockwiseNeighbor.getLocalPort() != -1 && 
+						user.counterClockwiseOutput == null)
+				{
+					user.counterClockwiseOutput = new ObjectOutputStream(user.counterClockwiseNeighbor.getOutputStream());
+				}
+				
 			} catch (IOException e) {
 				System.err.println("Unable to create output streams");
-				return;
+				System.out.println(e.getMessage());
 			}
 			
-			while(super.senderOK)
-			{
-				// If the sockets have changed, we need to get new output streams 
-				try{
-					if(clockwisePort != super.clockwiseNeighbor.getPort())
-					{
-						clockwise = new ObjectOutputStream(
-								super.clockwiseNeighbor.getOutputStream()); 
-						clockwisePort = super.clockwiseNeighbor.getPort();
-					}
-					if(counterClockwisePort != super.counterClockwiseNeighbor.getPort())
-					{
-						clockwise = new ObjectOutputStream(
-								super.counterClockwiseNeighbor.getOutputStream()); 
-						clockwisePort = super.clockwiseNeighbor.getPort();
-					}
-				}catch(Exception e){System.err.println("Error updating output streams");}
+			while(user.senderOK)
+			{		
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e1) {}
 				
-				if(!super.toClockwiseNeighbor.isEmpty())
+				// If there is data to write, we send it.
+				if(!user.toClockwiseNeighbor.isEmpty())
 				{
 					try {
-						clockwise.writeObject(super.toClockwiseNeighbor.take());
+						Message message = user.toClockwiseNeighbor.take();
+						System.out.println("Sending message: " + message.toString());
+						user.clockwiseOutput.writeObject(message);
+						user.clockwiseOutput.flush();
 					} catch (Exception e) {System.err.println("Error sending to clockwise");}
 				}
-				if(!super.toCounterClockwiseNeighbor.isEmpty())
+				if(!user.toCounterClockwiseNeighbor.isEmpty() && user.toCounterClockwiseNeighbor != null)
 				{
 					try {
-						counterClockwise.writeObject(super.toCounterClockwiseNeighbor.take());
+						Message message = user.toCounterClockwiseNeighbor.take();
+						System.out.println("Sending message: " + message.toString());
+						user.counterClockwiseOutput.writeObject(message);
+						user.counterClockwiseOutput.flush();
 					} catch (Exception e) {System.err.println("Error sending to counter clockwise");}
 				}
 			}
-		}
-		
+		}	
 	}
 	
 	private class Receiver extends User implements Runnable, Serializable
 	{
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1L;
 		boolean clockwise;
-		public Receiver(boolean isClockwise)
+		User user;
+		public Receiver(boolean isClockwise, User user)
 		{
+			this.user = user;
 			this.clockwise = isClockwise;
 		}
 		
 		@Override
 		public void run() 
 		{
-			while(super.clockwiseNeighbor == null);
-			System.out.println("Starting to listen for messages");
-			ObjectInputStream input;
+			while(!user.clockwiseNeighbor.isConnected());
+			System.out.println("RECEIVER " + clockwise);
+			boolean runningFlag = true;;
+			
+			// Make sure all streams are setup.
 			try
 			{
 				if(clockwise)
 				{
-					input = new ObjectInputStream(super.clockwiseNeighbor.getInputStream());
+					if(user.clockwiseInput == null)
+					{
+						user.clockwiseInput = new ObjectInputStream(user.clockwiseNeighbor.getInputStream());
+					}
 				}
 				else
 				{
-					input = new ObjectInputStream(super.counterClockwiseNeighbor.getInputStream());
+					if(user.counterClockwiseInput == null)
+					{
+						user.counterClockwiseInput = new ObjectInputStream(user.counterClockwiseNeighbor.getInputStream());
+					}
 				}
 				
-			}catch(Exception e){System.err.println("Couldn't setup input streams");return;}
+			}catch(Exception e){
+				System.err.println("Couldn't setup input streams");
+				return;
+				}
 			
-			Message message = null;
-			while(super.receiverOK)
+			while(runningFlag)
 			{
 				try 
 				{
-					dealWithMessage((Message) input.readObject());
+					// Read in a message
+					Message message;
+					if(this.clockwise)
+					{
+						message = (Message) user.clockwiseInput.readObject();
+					}
+					else
+					{
+						message = (Message) user.counterClockwiseInput.readObject();
+					}
+					System.out.println("Received message: " + message.toString());
+					dealWithMessage(message);
 				} catch (ClassNotFoundException | IOException e) 
 				{
 					System.err.println("Error reading from the socket");
 				}
 				
+				runningFlag = (this.clockwise)? user.cReceiverOK : user.ccReceiverOK;
 			}
 			
 		}
 
 		private void dealWithMessage(Message message) 
 		{
-			if(message.typeFlag == super.REGULAR_MESSAGE)
+			if(message.typeFlag == user.REGULAR_MESSAGE)
 			{
 				System.out.println(message.message);
 			}
 			// If it's the case where out neighbor is letting us know to make a connection with a node
-			else if(message.typeFlag == super.FORWARDING_PORT_FOR_CONTACT)
+			else if(message.typeFlag == user.FORWARDING_PORT_FOR_CONTACT)
 			{
 				int port = Integer.parseInt(message.message);
 				try {
 					Socket newNeighbor = new Socket("localhost", port);
-					if(!super.clockwiseNeighbor.isClosed())
+					
+					//If there are only two nodes in the network, both have each other as the clockwise neighbor so 
+					// pointers needs to be rearranged.
+					if(!user.counterClockwiseNeighbor.isConnected())
 					{
-						super.clockwiseNeighbor.close();
+						user.counterClockwiseNeighbor = user.clockwiseNeighbor;
 					}
-					super.clockwiseNeighbor = newNeighbor;
+					user.clockwiseNeighbor = newNeighbor;
+					user.clockwiseOutput = new ObjectOutputStream(user.clockwiseNeighbor.getOutputStream());
+					user.clockwiseInput = new ObjectInputStream(user.clockwiseNeighbor.getInputStream());
+					
+					if(user.numReceivers < 2)
+					{
+						Thread counterClockwiseReceiver = new Thread(new Receiver(false, user));
+						this.ccReceiverOK = true;
+						counterClockwiseReceiver.start();
+						this.numReceivers = 2;
+					}
 				} catch (IOException e) {
 					System.err.println("Couldn't establish a connection with the new node");
 				}
 			}
-			else if(message.typeFlag == super.QUIT_WITH_2_NODE_NETWORK)
+			else if(message.typeFlag == user.QUIT_WITH_2_NODE_NETWORK)
 			{
 				try {
-					super.clockwiseNeighbor.close();
-					super.counterClockwiseNeighbor.close();
+					user.clockwiseNeighbor.close();
+					user.counterClockwiseNeighbor.close();
 				} catch (IOException e) {
 					System.err.println("Couldn't close the connections to the neighbors");
 				}
 			}
-			else if(message.typeFlag == super.QUIT_WITH_PORT)
+			else if(message.typeFlag == user.QUIT_WITH_PORT)
 			{
 				int port = Integer.parseInt(message.message);
 				try {
 					Socket newNeighbor = new Socket("localhost", port);
-					super.clockwiseNeighbor.close();
-					super.clockwiseNeighbor = newNeighbor;
+					user.clockwiseNeighbor.close();
+					user.clockwiseNeighbor = newNeighbor;
 				} catch (IOException e) {
 					System.err.println("Couldn't set a node as my new neighbor QWP");
 				}
 			}
-			else if(message.typeFlag == super.QUIT_NOTIFICATION)
+			else if(message.typeFlag == user.QUIT_NOTIFICATION)
 			{
 				Socket newNeighbor;
 				try {
 					ServerSocket listener = new ServerSocket();
 					newNeighbor = listener.accept();
-					super.counterClockwiseNeighbor.close();
-					super.counterClockwiseNeighbor = newNeighbor;
+					user.counterClockwiseNeighbor.close();
+					user.counterClockwiseNeighbor = newNeighbor;
 					listener.close();
 				} catch (IOException e) {
 					System.err.println("Error listening and adding new neighbor QN");
