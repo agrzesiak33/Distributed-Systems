@@ -22,5 +22,10 @@ class Message implements Serializable
 			this.message = Integer.toString(port);
 			this.id = id;
 		}
+		@Override
+		public String toString()
+		{
+			return("Flag: " + Integer.toString(this.typeFlag) + " message: " + this.message);
+		}
 		
 	}
