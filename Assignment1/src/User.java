@@ -92,7 +92,6 @@ public class User implements Serializable
 		
 		int argc = args.length;
 		
-		
 		// If more than 2 arguments is passed in, it means this 
 		//	user want't to connect to an existing network.
 		if(argc == 4)
@@ -117,6 +116,9 @@ public class User implements Serializable
 			counterClockwiseReceiver.start();
 			this.numReceivers = 2;
 		}
+		
+		Thread writerThread = new Thread(new Writer(this));
+		writerThread.start();
 		
 		// At this time, the sender and receiver are doing their jobs
 		// Now we have to listen for other users contacting myself to get added to the network.
@@ -329,9 +331,21 @@ public class User implements Serializable
                         userMessage = userMessage.substring(1+command[0].length());
                         SecureRandom SR = new SecureRandom();
                         int id = SR.nextInt(100000000); //id is random number between 1 and 100 million
-                        Message regularMessage = new Message(REGULAR_MESSAGE,userMessage,id);
-                        currentUser.toClockwiseNeighbor.add(regularMessage);
-                        currentUser.toCounterClockwiseNeighbor.add(regularMessage);
+                        Message regularMessage = new Message(currentUser.REGULAR_MESSAGE,userMessage,id);
+                        
+                        try {
+                        	if(currentUser.clockwiseNeighbor.isConnected())
+                        	{
+                        		currentUser.toClockwiseNeighbor.put(regularMessage);
+                        	}
+                        	if(currentUser.counterClockwiseNeighbor.isConnected())
+                        	{
+                        		currentUser.toCounterClockwiseNeighbor.put(regularMessage);
+                        	}
+							
+						} catch (InterruptedException e) {
+							System.err.println("Couldn't send the message");
+						}
                     }
 
                 }
@@ -348,6 +362,7 @@ public class User implements Serializable
                     System.out.println("Command Error. Type -help for help");
                 }
             }
+            myScanner.close();
 
         }
     }	
@@ -406,7 +421,7 @@ public class User implements Serializable
 						user.clockwiseOutput.flush();
 					} catch (Exception e) {System.err.println("Error sending to clockwise");}
 				}
-				if(!user.toCounterClockwiseNeighbor.isEmpty() && user.toCounterClockwiseNeighbor != null)
+				if(!user.toCounterClockwiseNeighbor.isEmpty() && user.counterClockwiseNeighbor.isConnected())
 				{
 					try {
 						Message message = user.toCounterClockwiseNeighbor.take();
