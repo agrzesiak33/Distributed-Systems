@@ -4,9 +4,9 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.SecureRandom;
 import java.util.HashSet;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
+import java.util.Scanner;
 import java.util.concurrent.LinkedBlockingQueue;
 
 
@@ -256,7 +256,7 @@ public class User implements Serializable
 //		if(this.counterClockwiseNeighbor.getLocalPort() == this.clockwiseNeighbor.getLocalPort())
 //		{
 //			this.toCounterClockwiseNeighbor.put(new Message(this.QUIT_WITH_2_NODE_NETWORK, "", 0));
-//			while(!this.toCounterClockwiseNeighbor.isEmpty());		
+//			while(!this.toCounterClockwiseNeighbor.isEmpty());
 //			try {this.counterClockwiseNeighbor.close(); this.clockwiseNeighbor.close();} catch (Exception e) {}
 //		}
 //		//	 If there are more than 2 nodes in the network.
@@ -266,14 +266,77 @@ public class User implements Serializable
 //			this.toCounterClockwiseNeighbor.put(
 //					new Message(this.QUIT_WITH_PORT, this.clockwiseNeighbor.getLocalPort(), 0));
 //			this.toClockwiseNeighbor.put(new Message(this.QUIT_NOTIFICATION, "", 0));
-//			
-//			
+//
+//
 //		}
 //		this.senderOK = false;
 //		this.receiverOK = false;
 //		return true;
 //	}
-	
+    private class Writer implements Runnable {
+
+        User currentUser;
+
+        private boolean keepSending;
+        public Writer(User u)
+        {
+            currentUser = u;
+            keepSending =true;
+        }
+
+        @Override
+        public void run()
+        {
+            Scanner myScanner = new Scanner(System.in);
+            System.out.println("Now user can write a message");
+            while(keepSending)
+            {
+                String userMessage = myScanner.nextLine();
+                //in case keepsending changed while waiting user input
+                if (!keepSending)
+                    break;
+
+                //splits user input to check what command is used
+                String[] command = userMessage.split(" ");
+
+                if (command[0].equalsIgnoreCase("-help"))
+                {
+                    System.out.println("For sending a message write -send and your message");
+                    System.out.println("For quiting write -quit");
+                }
+                else if (command[0].equalsIgnoreCase("-send"))
+                {
+                    //messages that are empty or made of only spaces are not accepted.
+                    if (command.length <=1)
+                    {
+                        System.out.println("Error: after -send command there must be a message written. Ex: -send Hello World.");
+                    }
+                    else {
+                        userMessage = userMessage.substring(1+command[0].length());
+                        SecureRandom SR = new SecureRandom();
+                        int id = SR.nextInt(100000000); //id is random number between 1 and 100 million
+                        Message regularMessage = new Message(REGULAR_MESSAGE,userMessage,id);
+                        currentUser.toClockwiseNeighbor.add(regularMessage);
+                        currentUser.toCounterClockwiseNeighbor.add(regularMessage);
+                    }
+
+                }
+                else if (command[0].equalsIgnoreCase("-quit"))
+                {
+
+                    //closing all conections properly
+                    //sending messages telling neighbors that node is leaving.
+
+                    //thread finishes
+                    keepSending =false;
+                }
+                else {
+                    System.out.println("Command Error. Type -help for help");
+                }
+            }
+
+        }
+    }	
 	
 	private class Sender extends User implements Runnable, Serializable
 	{
