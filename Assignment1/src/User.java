@@ -86,6 +86,8 @@ public class User implements Serializable
 		this.myHost = args[0];
 		this.myPort= Integer.parseInt(args[1]);
 		
+		this.numReceivers = 0;
+		
 		ServerSocket listener = new ServerSocket(this.myPort);
 		
 		int argc = args.length;
@@ -107,21 +109,14 @@ public class User implements Serializable
 		this.senderOK = true;
 		sender.start();
 		
-		Thread clockwiseReceiver = new Thread(new Receiver(true, this));
-		this.cReceiverOK = true;
-		clockwiseReceiver.start();
-		this.numReceivers = 1;
-		
 		//If I am connecting to a network with more than 2 nodes.
-		if(this.counterClockwiseNeighbor.isConnected())
+		if(this.counterClockwiseNeighbor.isConnected() && this.numReceivers < 2)
 		{
 			Thread counterClockwiseReceiver = new Thread(new Receiver(false, this));
 			this.ccReceiverOK = true;
 			counterClockwiseReceiver.start();
 			this.numReceivers = 2;
 		}
-		
-		
 		
 		// At this time, the sender and receiver are doing their jobs
 		// Now we have to listen for other users contacting myself to get added to the network.
@@ -136,9 +131,11 @@ public class User implements Serializable
             try {
 				boolean startThread = dealWithNewUser(incomingUser);
 				// If I am already in a network with 2 nodes and someone connects making 3
-				if(startThread)
+				System.out.println(this.numReceivers);
+				if(startThread && this.numReceivers < 2)
 				{
-					Thread counterClockwiseReceiver = new Thread(new Receiver(true, this));
+					System.out.println("Starting a new counter clockwise receiver");
+					Thread counterClockwiseReceiver = new Thread(new Receiver(false, this));
 					this.ccReceiverOK = true;
 					counterClockwiseReceiver.start();
 					this.numReceivers = 2;
@@ -154,6 +151,7 @@ public class User implements Serializable
 		ObjectOutputStream output = new ObjectOutputStream(incomingUser.getOutputStream());
 		ObjectInputStream input = new ObjectInputStream(incomingUser.getInputStream());
 		
+		boolean createAnotherReceiver = !this.counterClockwiseNeighbor.isConnected();
 		Message message = null;
 		try {
 			message = (Message) input.readObject();
@@ -175,6 +173,13 @@ public class User implements Serializable
 			this.clockwiseOutput = output;
 			this.clockwiseInput =input;
 			this.clockWisePort = incomingUserPortNumber;
+			
+			Thread clockwiseReceiver = new Thread(new Receiver(true, this));
+			this.cReceiverOK = true;
+			clockwiseReceiver.start();
+			this.numReceivers++;
+			
+			createAnotherReceiver = false;
 			
 		}
 		else
@@ -211,7 +216,7 @@ public class User implements Serializable
 			this.counterClockwiseOutput = output;
 			this.counterClockWisePort = incomingUserPortNumber;
 		}
-		return this.clockwiseNeighbor.isConnected() && !this.counterClockwiseNeighbor.isConnected();
+		return createAnotherReceiver;
 	}
 	
 	private boolean addMyselfToNetwork(String connectingHost, int connectingPort, ServerSocket listener)
@@ -230,6 +235,11 @@ public class User implements Serializable
 			message = (Message) this.clockwiseInput.readObject();
 			System.out.println("ADD_ME " +  message.toString());
 			
+			Thread clockwiseReceiver = new Thread(new Receiver(true, this));
+			this.cReceiverOK = true;
+			clockwiseReceiver.start();
+			this.numReceivers++;
+			
 			// If me and the contacting node are NOT the only ones in the network we listen for another node to make contact
 			if(message.typeFlag != this.START_WITH_1_NODE_NETWORK)
 			{
@@ -238,9 +248,13 @@ public class User implements Serializable
 				System.out.println("Got the socket");
 				this.counterClockwiseOutput = new ObjectOutputStream(this.counterClockwiseNeighbor.getOutputStream());
 				this.counterClockwiseOutput.flush();
-				this.counterClockwiseInput = new ObjectInputStream(this.counterClockwiseNeighbor.getInputStream());
+				this.counterClockwiseInput = new ObjectInputStream(this.counterClockwiseNeighbor.getInputStream());		
 				
-				
+				Thread counterClockwiseReceiver = new Thread(new Receiver(false, this));
+				this.ccReceiverOK = true;
+				counterClockwiseReceiver.start();
+				this.numReceivers++;
+				System.out.println(" Added myself: " + Integer.toString(this.numReceivers));
 			}			
 			return true;
 		}catch(Exception e){
@@ -433,6 +447,7 @@ public class User implements Serializable
 				{
 					if(user.clockwiseInput == null)
 					{
+						System.out.println("Creating new clockwise input stream");
 						user.clockwiseInput = new ObjectInputStream(user.clockwiseNeighbor.getInputStream());
 					}
 				}
@@ -440,6 +455,7 @@ public class User implements Serializable
 				{
 					if(user.counterClockwiseInput == null)
 					{
+						System.out.println("Creating new counter clockwise input stream");
 						user.counterClockwiseInput = new ObjectInputStream(user.counterClockwiseNeighbor.getInputStream());
 					}
 				}
@@ -493,11 +509,14 @@ public class User implements Serializable
 					if(!user.counterClockwiseNeighbor.isConnected())
 					{
 						user.counterClockwiseNeighbor = user.clockwiseNeighbor;
+						user.counterClockwiseInput = user.clockwiseInput;
+						user.counterClockwiseOutput = user.counterClockwiseOutput;
 					}
 					user.clockwiseNeighbor = newNeighbor;
 					user.clockwiseOutput = new ObjectOutputStream(user.clockwiseNeighbor.getOutputStream());
 					user.clockwiseInput = new ObjectInputStream(user.clockwiseNeighbor.getInputStream());
 					
+					System.out.println("receivedMessage" + user.numReceivers);
 					if(user.numReceivers < 2)
 					{
 						Thread counterClockwiseReceiver = new Thread(new Receiver(false, user));
