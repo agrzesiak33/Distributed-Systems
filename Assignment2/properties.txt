@@ -1,3 +1,4 @@
-Locking: false
-Number of Accounts: 10
-Port number: 8888
+PORT = 8888
+NUMBER_ACCOUNTS = 10
+INITIAL_BALANCE = 10
+USES_LOCKS = false
