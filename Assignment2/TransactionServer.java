@@ -10,6 +10,7 @@ public class TransactionServer {
 		boolean isLocking = false;
 		int numAccounts = 0;
 		int port = 0;
+		int initialBalance = 0;
 		
 		// Get all the necessary information from the file
 		if(args.length != 1)
@@ -25,6 +26,7 @@ public class TransactionServer {
 				isLocking = (temp[0] == 1) ? true : false;
 				numAccounts = temp[1];
 				port = temp[2];
+				initialBalance = temp[3];
 			}
 			else
 			{
@@ -33,7 +35,7 @@ public class TransactionServer {
 		}
 		
 		// Create all the managers
-		AccountManager accountManager = new AccountManager(numAccounts, isLocking);
+		AccountManager accountManager = new AccountManager(numAccounts, isLocking, initialBalance);
 		TransactionManager transactionManager = new TransactionManager(accountManager);
 		System.out.println("Created all managers");
 		
