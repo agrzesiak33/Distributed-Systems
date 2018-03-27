@@ -20,15 +20,18 @@ public class TransactionManager {
 	
 	public void run(int port) throws IOException 
 	{
+		@SuppressWarnings("resource")
 		ServerSocket serverSock = new ServerSocket(port);
 		
 		while(true)
 		{
+			System.out.println("Listening for connections");
 			Socket socket = serverSock.accept();
 			Transaction incomingTransaction = new Transaction(numTransactions++);
 			transactions.add(incomingTransaction);
 			new Thread(new TransactionManagerWorker(socket, incomingTransaction, this.accountManager)).start();
 		}
+		
 	}
 	
 	

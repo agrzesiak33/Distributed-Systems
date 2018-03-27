@@ -45,7 +45,6 @@ public class LockManager {
 				theLocks.remove(lock);
 			}
 		}
-
 	}
 	
 	

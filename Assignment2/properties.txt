@@ -1,0 +1,3 @@
+Locking: false
+Number of Accounts: 10
+Port number: 8888

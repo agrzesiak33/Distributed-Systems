@@ -19,6 +19,7 @@ public class TransactionServer {
 		else
 		{
 			int[] temp = getProperties(args[0]);
+			System.out.println("Imported Properties File");
 			if(temp != null)
 			{
 				isLocking = (temp[0] == 1) ? true : false;
@@ -35,15 +36,14 @@ public class TransactionServer {
 		AccountManager accountManager = new AccountManager(numAccounts, isLocking);
 		LockManager lockManager = new LockManager();
 		TransactionManager transactionManager = new TransactionManager(accountManager, lockManager);
+		System.out.println("Created all managers");
 		
 		try {
 			transactionManager.run(port);
 		} catch (IOException e) {
 			System.err.println("Error while running transaction server");
 			System.err.println(e);
-		}
-		
-		
+		}	
 	}
 	
 	@SuppressWarnings("resource")
@@ -64,7 +64,7 @@ public class TransactionServer {
 		try {
 			while((line = reader.readLine()) != null)
 			{
-				String parts[] = line.split(" ");
+				String parts[] = line.split(":");
 				
 				if(parts[0].toLowerCase().contains("lock"))
 				{
@@ -82,10 +82,10 @@ public class TransactionServer {
 				{
 					try
 					{
-						numAccounts = Integer.parseInt(parts[1]);
+						numAccounts = Integer.parseInt(parts[1].trim());
 					}catch(NumberFormatException e)
 					{
-						System.err.println("Could not parse integer" + parts[1]);
+						System.err.println("Could not parse integer " + parts[1].trim());
 						return null;
 					}
 					
@@ -94,10 +94,10 @@ public class TransactionServer {
 				{
 					try
 					{
-						port = Integer.parseInt(parts[1]);
+						port = Integer.parseInt(parts[1].trim());
 					}catch(NumberFormatException e)
 					{
-						System.err.println("Could not parse integer" + parts[1]);
+						System.err.println("Could not parse integer " + parts[1].trim());
 						return null;
 					}
 				}
