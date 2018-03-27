@@ -6,15 +6,13 @@ import java.util.ArrayList;
 public class TransactionManager {
 	
 	AccountManager accountManager;
-	LockManager lockManager;
 	int numTransactions;
 	ArrayList<Transaction> transactions;
 
-	public TransactionManager(AccountManager accountManager, LockManager lockManager)
+	public TransactionManager(AccountManager accountManager)
 	{
 		this.transactions = new ArrayList<Transaction>();
 		this.accountManager = accountManager;
-		this.lockManager = lockManager;
 		this.numTransactions = 0;
 	}
 	
@@ -30,9 +28,6 @@ public class TransactionManager {
 			Transaction incomingTransaction = new Transaction(numTransactions++);
 			transactions.add(incomingTransaction);
 			new Thread(new TransactionManagerWorker(socket, incomingTransaction, this.accountManager)).start();
-		}
-		
-	}
-	
-	
+		}		
+	}	
 }

@@ -49,12 +49,11 @@ public class TransactionManagerWorker implements Runnable
 				String messageSplit[] = incomingString.toLowerCase().split(" ");
 				String operation = messageSplit[0];
 				
-				if(operation.contains("start"))
-				{
-					
-				}
+				// When the connection is made, the transaction is started so this is redundant
+				//if(operation.contains("start"))
 				
-				else if(operation.contains("finish"))
+				
+				if(operation.contains("finish"))
 				{
 					running = finish(output, input);	
 				}
@@ -72,10 +71,12 @@ public class TransactionManagerWorker implements Runnable
 	}
 
 
-	private boolean finish(ObjectOutputStream output, ObjectInputStream input) {
-		boolean running;
-		running = false;
+	private boolean finish(ObjectOutputStream output, ObjectInputStream input) 
+	{
+		boolean running = false;
+		
 		this.transaction.log("Closing transaction " + Integer.toString(this.transaction.id));
+		
 		if(this.accountManager.getUsesLock())
 		{
 			this.transaction.log("Releasing all locks for " + Integer.toString(this.transaction.id));
@@ -83,7 +84,9 @@ public class TransactionManagerWorker implements Runnable
 			this.transaction.log("Released all locks for " + Integer.toString(this.transaction.id));
 			this.transaction.dumpLog();
 		}
+		
 		this.transaction.open = false;
+		
 		try
 		{
 			output.close();
@@ -93,11 +96,13 @@ public class TransactionManagerWorker implements Runnable
 		{
 			System.err.println("Couldn't close gracefully");
 		}
+		
 		return running;
 	}
 
 
-	private void get(ObjectOutputStream output, String[] messageSplit) {
+	private void get(ObjectOutputStream output, String[] messageSplit) 
+	{
 		//	Get the account number from the stream 
 		int accountNumber = -1;
 		try
@@ -126,7 +131,8 @@ public class TransactionManagerWorker implements Runnable
 	}
 
 
-	private void transfer(String[] messageSplit) {
+	private void transfer(String[] messageSplit) 
+	{
 		// Get the accounts we are sending to and from and the amount
 		int toAccount = -1;
 		int fromAccount = -1;

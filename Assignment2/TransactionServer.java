@@ -34,8 +34,7 @@ public class TransactionServer {
 		
 		// Create all the managers
 		AccountManager accountManager = new AccountManager(numAccounts, isLocking);
-		LockManager lockManager = new LockManager();
-		TransactionManager transactionManager = new TransactionManager(accountManager, lockManager);
+		TransactionManager transactionManager = new TransactionManager(accountManager);
 		System.out.println("Created all managers");
 		
 		try {
