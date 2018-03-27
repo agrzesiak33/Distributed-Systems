@@ -48,9 +48,11 @@ public class TransactionServer {
 	@SuppressWarnings("resource")
 	public static int[] getProperties(String fileName)
 	{
-		int isLocking = 0;
-		int numAccounts = 0;
-		int port = 0;
+		int isLocking = -1;
+		int numAccounts = -1;
+		int port = -1;
+		int initialBalance = -1;
+		
 		File file = new File(fileName);
 		BufferedReader reader = null;
 		try {
@@ -63,11 +65,11 @@ public class TransactionServer {
 		try {
 			while((line = reader.readLine()) != null)
 			{
-				String parts[] = line.split(":");
+				String parts[] = line.split("=");
 				
 				if(parts[0].toLowerCase().contains("lock"))
 				{
-					if(parts[1].toLowerCase().contains("fasle"))
+					if(parts[1].toLowerCase().contains("false"))
 					{
 						isLocking = 0;
 					}
@@ -100,6 +102,18 @@ public class TransactionServer {
 						return null;
 					}
 				}
+				
+				else if(parts[0].toLowerCase().contains("balance"))
+				{
+					try
+					{
+						initialBalance = Integer.parseInt(parts[1].trim());
+					}catch(NumberFormatException e)
+					{
+						System.err.println("Could not parse integer " + parts[1].trim());
+						return null;
+					}
+				}
 			}
 		} catch (IOException e) {
 			System.err.println("Couldn't read line");
@@ -110,6 +124,6 @@ public class TransactionServer {
 			reader.close();
 		} catch (IOException e) {}
 		
-		return(new int[]{isLocking, numAccounts, port});
+		return(new int[]{isLocking, numAccounts, port, initialBalance});
 	}
 }

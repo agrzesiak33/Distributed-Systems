@@ -32,7 +32,7 @@ public class TransactionManagerWorker implements Runnable
 			System.err.println("Could not setup streams");
 		}
 		
-		// Listen for messages coming from the user
+		// Listen for messages coming from the client
 		boolean running = true;
 		while(running)
 		{
@@ -94,7 +94,7 @@ public class TransactionManagerWorker implements Runnable
 			this.clientSocket.close();
 		}catch(Exception e)
 		{
-			System.err.println("Couldn't close gracefully");
+			System.err.println("Couldn't close socket and streams gracefully");
 		}
 		
 		return running;
