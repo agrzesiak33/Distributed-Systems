@@ -18,7 +18,7 @@ public class Transaction {
 	
 	public void log(String logString)
 	{
-		this.logMessages += logString + '\n';
+		this.logMessages += '\t' + logString + '\n';
 	}
 	
 	public String getLog()

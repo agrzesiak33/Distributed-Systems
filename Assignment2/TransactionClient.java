@@ -1,28 +1,31 @@
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.Random;
 
 public class TransactionClient
 {
-    //client
-    //args contains:
-    //1st host name/ip
-    //2nd port
-    //3rd my account number
     public static void main(String args[])
     {
+    	
+    	int[] properties = getProperties(args[0]);
+    	int numberOfTransactions = properties[1];
+        int port = properties[0];
+        
+    	
         //setting up possible accounts
         int [] accountNumbers = new int[10]; //10 accounts
         for (int i = 0; i<accountNumbers.length; i++)
         {
-            accountNumbers[i]= 1001+i;
+            accountNumbers[i]= i;
         }
         String [] possibleOperations = {"read", "write"};
 
-        //number of transactions that will be done by
-        int numberOfTransactions = Integer.parseInt(args[2]);
-
         //clients creates TransactionServerProxy instance
         //host and port are passed as arguments to the proxy
-        TransactionServerProxy TSP = new TransactionServerProxy(args[0],Integer.parseInt(args[1]));
+        TransactionServerProxy TSP = new TransactionServerProxy("localhost", port);
 
         Random randNumber = new Random();
         for (int j =0; j < numberOfTransactions; j++)
@@ -40,6 +43,7 @@ public class TransactionClient
             {
                 //select an account to read balance.
                 int selectedAccount = accountNumbers[randNumber.nextInt(10)];
+                System.out.println("\tReading account balance from " + selectedAccount + " in transaction " + currentTransactionID);
                 TSP.readBalance(selectedAccount, currentTransactionID);
             }
             else if (selectedOP.equalsIgnoreCase("write"))
@@ -52,7 +56,8 @@ public class TransactionClient
                     receiverAccount = accountNumbers[randNumber.nextInt(10)];
                 }
                 //amount of money sent from one account to another is between 1 and 100.
-                int amount = randNumber.nextInt(100)+1;
+                int amount = randNumber.nextInt(10);
+                System.out.println("\tTransfering " + amount + " from '" + senderAccount + "' to '" + receiverAccount + " in transaction " + currentTransactionID);
                 TSP.writeBalance(senderAccount,amount,receiverAccount, currentTransactionID);
             }
             else
@@ -68,6 +73,62 @@ public class TransactionClient
         while (!(numberOfTransactions == TSP.getTransactionsFinished() && TSP.getTransactionsStarted() == TSP.getTransactionsFinished()))
         {
             TSP.finishConnection();
+            break;
         }
     }
+
+	private static int[] getProperties(String fileName) 
+	{
+		int numTransactions = -1;
+		int port = -1;
+		
+		File file = new File(fileName);
+		BufferedReader reader = null;
+		try {
+			reader = new BufferedReader(new FileReader(file));
+		} catch (FileNotFoundException e) {
+			System.err.println("File doesn't exist");
+			return null;
+		}
+		String line;
+		try {
+			while((line = reader.readLine()) != null)
+			{
+				String parts[] = line.split("=");
+				
+				if(parts[0].toLowerCase().contains("num"))
+				{
+					try
+					{
+						numTransactions = Integer.parseInt(parts[1].trim());
+					}catch(NumberFormatException e)
+					{
+						System.err.println("Could not parse integer " + parts[1].trim());
+						return null;
+					}
+					
+				}
+				else if(parts[0].toLowerCase().contains("port"))
+				{
+					try
+					{
+						port = Integer.parseInt(parts[1].trim());
+					}catch(NumberFormatException e)
+					{
+						System.err.println("Could not parse integer " + parts[1].trim());
+						return null;
+					}
+				}
+			}
+		} catch (IOException e) {
+			System.err.println("Couldn't read line");
+			System.err.println(e);
+			return null;
+		}
+		try {
+			reader.close();
+		} catch (IOException e) {}
+		
+		return(new int[]{port, numTransactions});
+	}
 }
