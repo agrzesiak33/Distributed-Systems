@@ -21,10 +21,10 @@ public class TransactionManager {
 	{
 		@SuppressWarnings("resource")
 		ServerSocket serverSock = new ServerSocket(port);
+		System.out.println("Listening for connections");
 		
 		while(true)
 		{
-			System.out.println("Listening for connections");
 			Socket socket = serverSock.accept();
 			new Thread(new TransactionManagerWorker(socket, this)).start();
 		}		
