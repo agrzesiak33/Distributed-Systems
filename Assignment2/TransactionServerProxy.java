@@ -63,7 +63,9 @@ public class TransactionServerProxy implements Runnable
             //sends the account number from which the client wants to know th balance.
             String request = "-getBalance "+accNumber;
             out.writeObject(request);
-        } catch (IOException e) {
+            String incoming = (String) in.readObject();
+            // TODO Not sure what the point of reading here is.
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }

@@ -9,7 +9,6 @@ public class AccountManager {
 	
 	public AccountManager(int numAccounts, boolean usesLocking, int initialBalance) {
 		
-		// Initialize all accounts to $10
 		accounts = new int[numAccounts];
 		for (int i = 0; i < accounts.length; i++) {
 			accounts[i] = initialBalance;

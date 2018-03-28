@@ -6,14 +6,12 @@ import java.io.ObjectOutputStream;
 public class TransactionManagerWorker implements Runnable
 {
 	private Socket clientSocket;
-	private Transaction transaction;
-	private AccountManager accountManager;
+	private TransactionManager transactionManager;
 	
-	public TransactionManagerWorker(Socket socket, Transaction transaction, AccountManager am)
+	public TransactionManagerWorker(Socket socket, TransactionManager parent)
 	{
 		this.clientSocket = socket;
-		this.transaction = transaction;
-		this.accountManager = am;
+		this.transactionManager = parent;
 	}
 	
 
@@ -49,18 +47,29 @@ public class TransactionManagerWorker implements Runnable
 				String messageSplit[] = incomingString.toLowerCase().split(" ");
 				String operation = messageSplit[0];
 				
-				// When the connection is made, the transaction is started so this is redundant
-				//if(operation.contains("start"))
-				
-				
-				if(operation.contains("finish"))
+				if(operation.contains("start"))
 				{
-					running = finish(output, input);	
+					Transaction newTransaction = new Transaction(this.transactionManager.numTransactions.getAndIncrement());
+					
+					this.transactionManager.transactions.put(newTransaction.id, newTransaction);
+					
+					try {
+						output.writeObject(Integer.toString(newTransaction.id));
+					} catch (IOException e) {}
+				}
+				
+				
+				if(operation.contains("finish") && operation.length() >= 2)
+				{
+					finish(Integer.parseInt(messageSplit[1].trim()));	
 				}
 				
 				else if(operation.contains("get"))
 				{
-					get(output, messageSplit);
+					int accountNumber = Integer.parseInt(messageSplit[1].trim());
+					int transactionNumber = Integer.parseInt(messageSplit[2].trim());
+
+					get(output, accountNumber, transactionNumber);
 				}
 				else if(operation.contains("transfer"))
 				{
@@ -71,55 +80,42 @@ public class TransactionManagerWorker implements Runnable
 	}
 
 
-	private boolean finish(ObjectOutputStream output, ObjectInputStream input) 
+	private boolean finish(int transactionID) 
 	{
-		boolean running = false;
 		
-		this.transaction.log("Closing transaction " + Integer.toString(this.transaction.id));
+		Transaction currentTransaction = this.transactionManager.transactions.get(transactionID);
 		
-		if(this.accountManager.getUsesLock())
+		if(currentTransaction == null)
 		{
-			this.transaction.log("Releasing all locks for " + Integer.toString(this.transaction.id));
-			this.accountManager.getLockManager().unLock(this.transaction);
-			this.transaction.log("Released all locks for " + Integer.toString(this.transaction.id));
-			this.transaction.dumpLog();
+			return false;
 		}
 		
-		this.transaction.open = false;
+		currentTransaction.log("Closing transaction " + Integer.toString(currentTransaction.id));
 		
-		try
+		if(this.transactionManager.accountManager.getUsesLock())
 		{
-			output.close();
-			input.close();
-			this.clientSocket.close();
-		}catch(Exception e)
-		{
-			System.err.println("Couldn't close socket and streams gracefully");
+			currentTransaction.log("Releasing all locks for " + Integer.toString(currentTransaction.id));
+			this.transactionManager.accountManager.getLockManager().unLock(currentTransaction);
+			currentTransaction.log("Released all locks for " + Integer.toString(currentTransaction.id));
+			currentTransaction.dumpLog();
 		}
 		
-		return running;
+		currentTransaction.open = false;
+		
+		return true;
 	}
 
 
-	private void get(ObjectOutputStream output, String[] messageSplit) 
+	private void get(ObjectOutputStream output, int accountNumber, int transactionNumber) 
 	{
-		//	Get the account number from the stream 
-		int accountNumber = -1;
-		try
-		{
-			accountNumber = Integer.parseInt(messageSplit[1]);
-		}
-		catch(Exception e)
-		{
-			System.err.println("Couldn't parse the account number from the stream");
-		}
+		Transaction currentTransaction = this.transactionManager.transactions.get(transactionNumber);
 		
 		//	Starts the request from the account manager
 		if(accountNumber != -1)
 		{
-			this.transaction.log("Requesting to read balance from " + Integer.toString(accountNumber));
-			int balance = this.accountManager.getBalance(this.transaction, accountNumber);
-			this.transaction.log("Read the balance from " + Integer.toString(accountNumber));
+			currentTransaction.log("Requesting to read balance from " + Integer.toString(accountNumber));
+			int balance = this.transactionManager.accountManager.getBalance(currentTransaction, accountNumber);
+			currentTransaction.log("Read the balance from " + Integer.toString(accountNumber));
 		
 			// Sends the balance back
 			try {
@@ -134,41 +130,34 @@ public class TransactionManagerWorker implements Runnable
 	private void transfer(String[] messageSplit) 
 	{
 		// Get the accounts we are sending to and from and the amount
-		int toAccount = -1;
-		int fromAccount = -1;
-		int amount = -1;
-		try
-		{
-			amount = Integer.parseInt(messageSplit[1]);
-			fromAccount = Integer.parseInt(messageSplit[2]);
-			toAccount = Integer.parseInt(messageSplit[3]);
-		}
-		catch(Exception e)
-		{
-			System.err.println("Couldn't parse the account number from the stream");
-		}
+		int toAccount = Integer.parseInt(messageSplit[1].trim());
+		int fromAccount = Integer.parseInt(messageSplit[2].trim());
+		int amount = Integer.parseInt(messageSplit[3].trim());
+		int transactionID = Integer.parseInt(messageSplit[4].trim());
+		
+		Transaction currentTransaction = this.transactionManager.transactions.get(transactionID);
 		
 		if(toAccount != -1 && fromAccount != -1 && amount != -1)
 		{
 			// Read the account balance of the receiver
-			this.transaction.log("Requesting to read balance from " + toAccount);
-			int toAccountBalance = this.accountManager.getBalance(this.transaction, toAccount);
-			this.transaction.log("Read the balance from " + toAccount);
+			currentTransaction.log("Requesting to read balance from " + toAccount);
+			int toAccountBalance = this.transactionManager.accountManager.getBalance(currentTransaction, toAccount);
+			currentTransaction.log("Read the balance from " + toAccount);
 			
 			// Read the account balance from the sender
-			this.transaction.log("Requesting to read balance from " + fromAccount);
-			int fromAccountBalance = this.accountManager.getBalance(this.transaction, fromAccount);
-			this.transaction.log("Read the balance from " + fromAccount);
+			currentTransaction.log("Requesting to read balance from " + fromAccount);
+			int fromAccountBalance = this.transactionManager.accountManager.getBalance(currentTransaction, fromAccount);
+			currentTransaction.log("Read the balance from " + fromAccount);
 			
 			// Add the money to the receiver
-			this.transaction.log("Requesting to set " + toAccount + " to " + (toAccountBalance + amount));
-			this.accountManager.setBalance(this.transaction, toAccount, toAccountBalance + amount);
-			this.transaction.log("Set " + toAccount + " to " + (toAccountBalance + amount));
+			currentTransaction.log("Requesting to set " + toAccount + " to " + (toAccountBalance + amount));
+			this.transactionManager.accountManager.setBalance(currentTransaction, toAccount, toAccountBalance + amount);
+			currentTransaction.log("Set " + toAccount + " to " + (toAccountBalance + amount));
 			
 			// Subtract the money from the sender
-			this.transaction.log("Requesting to set " + fromAccount + " to " + (fromAccountBalance - amount));
-			this.accountManager.setBalance(this.transaction, fromAccount, fromAccountBalance - amount);
-			this.transaction.log("Set " + fromAccount + " to " + (fromAccountBalance - amount));
+			currentTransaction.log("Requesting to set " + fromAccount + " to " + (fromAccountBalance - amount));
+			this.transactionManager.accountManager.setBalance(currentTransaction, fromAccount, fromAccountBalance - amount);
+			currentTransaction.log("Set " + fromAccount + " to " + (fromAccountBalance - amount));
 		}
 	}
 }
