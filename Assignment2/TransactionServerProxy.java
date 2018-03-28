@@ -36,42 +36,47 @@ public class TransactionServerProxy implements Runnable
         t.start();
     }
 
-    public void startTransaction()
+    public int startTransaction()
     {
         System.out.println("Transaction started");
+        int transactionID = -1;
         try {
             out.writeObject("-start");
-        } catch (IOException e) {
+            transactionID = Integer.parseInt(((String) in.readObject()).trim());
+        } catch (IOException | NumberFormatException | ClassNotFoundException e) {
             e.printStackTrace();
         }
         transactionsStarted++;
+		return transactionID;
     }
 
-    public void finishTransaction()
+    public void finishTransaction(int transactionID)
     {
         System.out.println("Transaction finished");
         try {
-            out.writeObject("-finish");
+            out.writeObject("-finish " + Integer.toString(transactionID));
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void readBalance(int accNumber)
+    public void readBalance(int accNumber, int transactionID)
     {
         try {
-            //sends the account number from which the client wants to know th balance.
-            String request = "-getBalance "+accNumber;
+            //sends the account number from which the client wants to know the balance.
+            String request = "-getBalance " + accNumber + " " + transactionID;
             out.writeObject(request);
-        } catch (IOException e) {
+            String incoming = (String) in.readObject();
+            // TODO Not sure what the point of reading here is.
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }
 
     //money sent from sender account to receiver
-    public void writeBalance(int sender, int amount, int receiver)
+    public void writeBalance(int sender, int amount, int receiver, int transactionID)
     {
-        String request = "-transferMoney " + amount +" "+ sender+ " "+ receiver;
+        String request = "-transferMoney " + amount +" "+ sender+ " "+ receiver + " " + transactionID;
         try {
             //sends a message with the amount of money to transfer from sender to receiver..
             out.writeObject(request);

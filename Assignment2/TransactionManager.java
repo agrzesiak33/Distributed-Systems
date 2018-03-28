@@ -1,19 +1,20 @@
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class TransactionManager {
 	
 	AccountManager accountManager;
-	int numTransactions;
-	ArrayList<Transaction> transactions;
+	AtomicInteger numTransactions;
+	Hashtable<Integer, Transaction> transactions;
 
 	public TransactionManager(AccountManager accountManager)
 	{
-		this.transactions = new ArrayList<Transaction>();
+		this.transactions = new Hashtable<Integer, Transaction>();
 		this.accountManager = accountManager;
-		this.numTransactions = 0;
+		this.numTransactions = new AtomicInteger(0);
 	}
 	
 	public void run(int port) throws IOException 
@@ -25,9 +26,7 @@ public class TransactionManager {
 		{
 			System.out.println("Listening for connections");
 			Socket socket = serverSock.accept();
-			Transaction incomingTransaction = new Transaction(numTransactions++);
-			transactions.add(incomingTransaction);
-			new Thread(new TransactionManagerWorker(socket, incomingTransaction, this.accountManager)).start();
+			new Thread(new TransactionManagerWorker(socket, this)).start();
 		}		
 	}	
 }

@@ -28,17 +28,19 @@ public class TransactionClient
         for (int j =0; j < numberOfTransactions; j++)
         {
             //sends start signal tooo server
-            TSP.startTransaction();
+        	int currentTransactionID = TSP.startTransaction();
             //selects random operation
             int indexOfOp = randNumber.nextInt(2); //either 0 or 1
             String selectedOP = possibleOperations[indexOfOp];
             //selects random account
+            
+             
 
             if (selectedOP.equalsIgnoreCase("read"))
             {
                 //select an account to read balance.
                 int selectedAccount = accountNumbers[randNumber.nextInt(10)];
-                TSP.readBalance(selectedAccount);
+                TSP.readBalance(selectedAccount, currentTransactionID);
             }
             else if (selectedOP.equalsIgnoreCase("write"))
             {
@@ -51,14 +53,14 @@ public class TransactionClient
                 }
                 //amount of money sent from one account to another is between 1 and 100.
                 int amount = randNumber.nextInt(100)+1;
-                TSP.writeBalance(senderAccount,amount,receiverAccount);
+                TSP.writeBalance(senderAccount,amount,receiverAccount, currentTransactionID);
             }
             else
             {
                 System.out.println("Error Operation not found.");
             }
             //sends end of transaction signal to the server.
-            TSP.finishTransaction();
+            TSP.finishTransaction(currentTransactionID);
         }
 
         //no more transactions are send but still waiting for responses.
