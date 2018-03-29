@@ -11,10 +11,10 @@ public class TransactionClient
     {
 
         int[] properties = getProperties(args[0]);
+        int port = properties[0];
         int numberOfTransactions = properties[1];
         int numbeOfAccounts = properties[2];
-        int port = properties[0];
-
+        
         //setting up possible accounts
         int [] accountNumbers = new int[numbeOfAccounts]; //# accounts provided by properties file
         for (int i = 0; i<accountNumbers.length; i++)
@@ -77,7 +77,8 @@ public class TransactionClient
         }
     }
 
-    private static int[] getProperties(String fileName)
+    @SuppressWarnings("resource")
+	private static int[] getProperties(String fileName)
     {
         int numTransactions = -1;
         int port = -1;
