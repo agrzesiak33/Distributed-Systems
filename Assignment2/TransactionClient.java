@@ -9,14 +9,14 @@ public class TransactionClient
 {
     public static void main(String args[])
     {
-    	
-    	int[] properties = getProperties(args[0]);
-    	int numberOfTransactions = properties[1];
+
+        int[] properties = getProperties(args[0]);
+        int numberOfTransactions = properties[1];
+        int numbeOfAccounts = properties[2];
         int port = properties[0];
-        
-    	
+
         //setting up possible accounts
-        int [] accountNumbers = new int[10]; //10 accounts
+        int [] accountNumbers = new int[numbeOfAccounts]; //# accounts provided by properties file
         for (int i = 0; i<accountNumbers.length; i++)
         {
             accountNumbers[i]= i;
@@ -31,13 +31,13 @@ public class TransactionClient
         for (int j =0; j < numberOfTransactions; j++)
         {
             //sends start signal tooo server
-        	int currentTransactionID = TSP.startTransaction();
+            int currentTransactionID = TSP.startTransaction();
             //selects random operation
             int indexOfOp = randNumber.nextInt(2); //either 0 or 1
             String selectedOP = possibleOperations[indexOfOp];
             //selects random account
-            
-             
+
+
 
             if (selectedOP.equalsIgnoreCase("read"))
             {
@@ -77,58 +77,70 @@ public class TransactionClient
         }
     }
 
-	private static int[] getProperties(String fileName) 
-	{
-		int numTransactions = -1;
-		int port = -1;
-		
-		File file = new File(fileName);
-		BufferedReader reader = null;
-		try {
-			reader = new BufferedReader(new FileReader(file));
-		} catch (FileNotFoundException e) {
-			System.err.println("File doesn't exist");
-			return null;
-		}
-		String line;
-		try {
-			while((line = reader.readLine()) != null)
-			{
-				String parts[] = line.split("=");
-				
-				if(parts[0].toLowerCase().contains("num"))
-				{
-					try
-					{
-						numTransactions = Integer.parseInt(parts[1].trim());
-					}catch(NumberFormatException e)
-					{
-						System.err.println("Could not parse integer " + parts[1].trim());
-						return null;
-					}
-					
-				}
-				else if(parts[0].toLowerCase().contains("port"))
-				{
-					try
-					{
-						port = Integer.parseInt(parts[1].trim());
-					}catch(NumberFormatException e)
-					{
-						System.err.println("Could not parse integer " + parts[1].trim());
-						return null;
-					}
-				}
-			}
-		} catch (IOException e) {
-			System.err.println("Couldn't read line");
-			System.err.println(e);
-			return null;
-		}
-		try {
-			reader.close();
-		} catch (IOException e) {}
-		
-		return(new int[]{port, numTransactions});
-	}
+    private static int[] getProperties(String fileName)
+    {
+        int numTransactions = -1;
+        int port = -1;
+        int numAccounts = -1;
+
+        File file = new File(fileName);
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new FileReader(file));
+        } catch (FileNotFoundException e) {
+            System.err.println("File doesn't exist");
+            return null;
+        }
+        String line;
+        try {
+            while((line = reader.readLine()) != null)
+            {
+                String parts[] = line.split("=");
+
+                if(parts[0].toLowerCase().contains("transactions"))
+                {
+                    try
+                    {
+                        numTransactions = Integer.parseInt(parts[1].trim());
+                    }catch(NumberFormatException e)
+                    {
+                        System.err.println("Could not parse integer " + parts[1].trim());
+                        return null;
+                    }
+
+                }
+                else if(parts[0].toLowerCase().contains("port"))
+                {
+                    try
+                    {
+                        port = Integer.parseInt(parts[1].trim());
+                    }catch(NumberFormatException e)
+                    {
+                        System.err.println("Could not parse integer " + parts[1].trim());
+                        return null;
+                    }
+                }
+                else if (parts[0].toLowerCase().contains("accounts"))
+                {
+                    try
+                    {
+                        numAccounts = Integer.parseInt(parts[1].trim());
+                    }catch(NumberFormatException e)
+                    {
+                        System.err.println("Could not parse integer " + parts[1].trim());
+                        return null;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Couldn't read line");
+            System.err.println(e);
+            return null;
+        }
+        try {
+            reader.close();
+        } catch (IOException e) {}
+
+        return(new int[]{port, numTransactions, numAccounts});
+    }
 }
