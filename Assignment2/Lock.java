@@ -21,21 +21,27 @@ public class Lock {
 
 	// Acquires a lock
 	public synchronized void acquire(Transaction trans, LockType aLockType) {
-		while(isConflicting(aLockType)) {
+		while(isConflicting(trans, aLockType)) {
 			lockRequesters.add(trans);
 			try {
 				wait();
 			} catch(InterruptedException e) {}
 		}
 		lockRequesters.remove(trans);
+		
+			// No one holds the lock
 		if (holders.isEmpty()) {
 			holders.addElement(trans);
 			lockType = aLockType;
-		} else if (!holders.isEmpty()) {
+			
+			// Someone else holds the lock -- share it
+		} else if ((holders.size() == 1 && holders.firstElement() != trans) || holders.size() > 1) {
 			if (!holders.contains(trans)) {
 				holders.addElement(trans);
 			}
-		} else if (aLockType.isWrite && !lockType.isWrite) { // Why is this necessary? Isn't a write-lock caught in  if(holders.isEmpty())?
+			
+			// Transaction already holds the lock but needs promotion
+		} else if (aLockType.isWrite && !lockType.isWrite) {
 			lockType.promote();
 		}
 	}
@@ -52,9 +58,14 @@ public class Lock {
 	
 	
 	// Helper method for acquire()
-	private boolean isConflicting(LockType requestedLockType) {
+	private boolean isConflicting(Transaction trans, LockType requestedLockType) {
 		// No one holds the lock
 		if (lockType == null || holders.isEmpty()) {
+			return false;
+		}
+		
+		// Requester already has sole ownership of lock 
+		else if (holders.size() == 1 && holders.firstElement() == trans) {
 			return false;
 		}
 		
