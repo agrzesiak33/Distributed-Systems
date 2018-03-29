@@ -24,6 +24,7 @@ public class TransactionServer {
 			if(temp != null)
 			{
 				isLocking = (temp[0] == 1) ? true : false;
+				System.out.println("Locking is " + Boolean.toString(isLocking));
 				numAccounts = temp[1];
 				port = temp[2];
 				initialBalance = temp[3];
