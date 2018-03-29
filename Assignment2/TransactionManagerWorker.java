@@ -107,7 +107,9 @@ public class TransactionManagerWorker implements Runnable
 		}
 		
 		currentTransaction.open = false;
+		currentTransaction.log("The total across all accounts is " + this.transactionManager.accountManager.getSumOfAllAccounts());
 		currentTransaction.dumpLog();
+		
 		
 		return true;
 	}
