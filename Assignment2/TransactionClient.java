@@ -77,6 +77,7 @@ public class TransactionClient
         }
     }
 
+	@SuppressWarnings("resource")
 	private static int[] getProperties(String fileName) 
 	{
 		int numTransactions = -1;
