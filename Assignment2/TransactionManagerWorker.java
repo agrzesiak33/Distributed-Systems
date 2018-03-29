@@ -103,11 +103,13 @@ public class TransactionManagerWorker implements Runnable
 			currentTransaction.log("Releasing all locks for " + Integer.toString(currentTransaction.id));
 			this.transactionManager.accountManager.getLockManager().unLock(currentTransaction);
 			currentTransaction.log("Released all locks for " + Integer.toString(currentTransaction.id));
-			currentTransaction.dumpLog();
+			currentTransaction.dumpLog();			
 		}
 		
 		currentTransaction.open = false;
+		currentTransaction.log("The total across all accounts is " + this.transactionManager.accountManager.getSumOfAllAccounts());
 		currentTransaction.dumpLog();
+		
 		
 		return true;
 	}

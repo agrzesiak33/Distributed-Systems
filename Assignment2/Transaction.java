@@ -1,3 +1,6 @@
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 
 public class Transaction {
@@ -33,6 +36,16 @@ public class Transaction {
 
 	public void dumpLog() {
 		System.out.println(this.logMessages);
+		
+		FileWriter fstream;
+		try {
+			fstream = new FileWriter("out.txt", true);
+			BufferedWriter out = new BufferedWriter(fstream);
+			out.write(this.logMessages);
+			out.close();
+		} catch (IOException e) {}
+		
+		
 		
 	}
 }

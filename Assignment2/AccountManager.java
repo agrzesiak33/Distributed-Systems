@@ -54,4 +54,14 @@ public class AccountManager {
 		return this.usesLocking;
 	}
 	
+	public String getSumOfAllAccounts()
+	{
+		int total = 0;
+		for(int accountIndex = 0; accountIndex < accounts.length; accountIndex ++)
+		{
+			total += accounts[accountIndex];
+		}
+		return Integer.toString(total);
+	}
+	
 }
