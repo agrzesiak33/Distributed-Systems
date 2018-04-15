@@ -1,0 +1,64 @@
+Transaction 0 opened
+	Requesting to read balance from 3
+	Read the balance 10 from 3
+	Closing transaction 0
+Transaction 1 opened
+	Requesting to read balance from 7
+	Read the balance '10' from 7
+	Requesting to read balance from 0
+	Read the balance '10' from 0
+	Requesting to set 7 to 17
+	Set 7 to 17
+	Requesting to set 0 to 3
+	Set 0 to 3
+	Closing transaction 1
+Transaction 2 opened
+	Requesting to read balance from 5
+	Read the balance 10 from 5
+	Closing transaction 2
+Transaction 3 opened
+	Requesting to read balance from 0
+	Read the balance 3 from 0
+	Closing transaction 3
+Transaction 4 opened
+	Requesting to read balance from 8
+	Read the balance '10' from 8
+	Requesting to read balance from 7
+	Read the balance '10' from 7
+	Requesting to set 8 to 19
+	Set 8 to 19
+	Requesting to set 7 to 8
+	Set 7 to 8
+	Closing transaction 4
+Transaction 5 opened
+	Requesting to read balance from 3
+	Read the balance '10' from 3
+	Requesting to read balance from 2
+	Read the balance '10' from 2
+	Requesting to set 3 to 16
+	Set 3 to 16
+	Requesting to set 2 to 4
+	Set 2 to 4
+	Closing transaction 5
+Transaction 6 opened
+	Requesting to read balance from 3
+	Read the balance 16 from 3
+	Closing transaction 6
+Transaction 7 opened
+	Requesting to read balance from 3
+	Read the balance 16 from 3
+	Closing transaction 7
+Transaction 8 opened
+	Requesting to read balance from 7
+	Read the balance '8' from 7
+	Requesting to read balance from 9
+	Read the balance '8' from 9
+	Requesting to set 7 to 10
+	Set 7 to 10
+	Requesting to set 9 to 8
+	Set 9 to 8
+	Closing transaction 8
+Transaction 9 opened
+	Requesting to read balance from 1
+	Read the balance 10 from 1
+	Closing transaction 9
