@@ -132,8 +132,9 @@ public class Satellite extends Thread {
         ServerSocket incoming = null;
         try{
              incoming = new ServerSocket(this.satelliteInfo.getPort());
-        }catch(Exception e){
+        }catch(IOException e){
             System.err.println("Could not set up server socket");
+            return;
         }
         
         // start taking job requests in a server loop
@@ -145,8 +146,8 @@ public class Satellite extends Thread {
                 socket = incoming.accept();
                 new Thread(new SatelliteThread(socket, this)).start();
             } 
-        }catch(Exception e){
-            e.printStackTrace();
+        }catch(IOException e){
+            
         }        
     }
 
@@ -179,27 +180,41 @@ public class Satellite extends Thread {
             
             // reading message
             // ...
-            boolean running = true;
-            // TODO This loop may not be needed...idk
-            while(running)
-            {
-                try {
-                    this.message = (Message)this.readFromNet.readObject();
-                    switch (message.getType()) 
-                    {
-                        case JOB_REQUEST:
-                            // processing job request
-                            // TODO
-                            break;
+            try {
+                this.message = (Message)this.readFromNet.readObject();
+                switch (message.getType()) 
+                {
+                    case JOB_REQUEST:
+                        // processing job request
+                        // TODO
+                        
+                        // This is the job that is being requested
+                        Job job = (Job) message.getContent();
+                        
+                        // Now based on the job requirements, we load the Tool
+                        Tool jobTool = getToolObject(job.getToolName());
+                        
+                        // Now we run the operation on the parameters
+                        Integer newNumber = (Integer) jobTool.go(job.getParameters());
+                        
+                        // Send back the result
+                        this.writeToNet.writeObject(newNumber);
 
-                        default:
-                            System.err.println("[SatelliteThread.run] Warning: Message type not implemented");
-                    }
-                } catch (IOException ex) {
-                    Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (ClassNotFoundException ex) {
-                    Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
+                        break;
+
+                    default:
+                        System.err.println("[SatelliteThread.run] Warning: Message type not implemented");
                 }
+            } catch (IOException ex) {
+                Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (ClassNotFoundException ex) {
+                Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (UnknownToolException ex) {
+                Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (InstantiationException ex) {
+                Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (IllegalAccessException ex) {
+                Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
     }
@@ -211,11 +226,20 @@ public class Satellite extends Thread {
      */
     public Tool getToolObject(String toolClassString) throws UnknownToolException, ClassNotFoundException, InstantiationException, IllegalAccessException {
 
-        Tool toolObject = null;
-
-        // ...
-        
-        return toolObject;
+        Tool tool;
+        if(this.toolsCache.containsKey(toolClassString))
+        {
+            tool = (Tool) this.toolsCache.get(toolClassString);
+        }
+        else
+        {
+            // TODO Make sure the path to the tool class string 
+            String pathToolClass = "../" + toolClassString; 
+            Class operationClass = classLoader.loadClass(pathToolClass);
+            tool = (Tool) operationClass.newInstance();
+            this.toolsCache.put(toolClassString, tool);
+        }
+        return tool;
     }
 
     public static void main(String[] args) throws FileNotFoundException {
