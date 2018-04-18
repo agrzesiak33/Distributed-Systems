@@ -39,7 +39,8 @@ public class Satellite extends Thread {
     public Satellite(String satellitePropertiesFile, String classLoaderPropertiesFile, String serverPropertiesFile) throws FileNotFoundException {
 
         // read this satellite's properties and populate satelliteInfo object,
-        // which later on will be sent to the server
+        // which later on will be sent to the server      
+        
         File file = new File(satellitePropertiesFile);
         Scanner inputFile = new Scanner(file);
 
@@ -51,8 +52,7 @@ public class Satellite extends Thread {
                 String[] parts  = line.split("\t");
                 switch (parts[0].toLowerCase())
                 {
-                    case "host":
-                        
+                    case "name":
                         satelliteInfo.setName(parts[1]);
                         break;
                     case "port":
@@ -99,7 +99,7 @@ public class Satellite extends Thread {
             if(!line.startsWith("#"))
             {
                 line = line.replace(" ", "");
-                String[] parts  = line.split("=");
+                String[] parts  = line.split("\t");
                 switch (parts[0].toLowerCase())
                 {
                     case "host":
@@ -186,22 +186,15 @@ public class Satellite extends Thread {
                 {
                     case JOB_REQUEST:
                         // processing job request
-                        // TODO
                         
-                        // This is the job that is being requested
                         Job job = (Job) message.getContent();
                         
-                        // Now based on the job requirements, we load the Tool
                         Tool jobTool = getToolObject(job.getToolName());
                         
-                        // Now we run the operation on the parameters
                         Integer newNumber = (Integer) jobTool.go(job.getParameters());
                         
-                        // Send back the result
                         this.writeToNet.writeObject(newNumber);
-
                         break;
-
                     default:
                         System.err.println("[SatelliteThread.run] Warning: Message type not implemented");
                 }
@@ -225,7 +218,8 @@ public class Satellite extends Thread {
      * otherwise it is loaded dynamically
      */
     public Tool getToolObject(String toolClassString) throws UnknownToolException, ClassNotFoundException, InstantiationException, IllegalAccessException {
-
+        
+        
         Tool tool;
         if(this.toolsCache.containsKey(toolClassString))
         {
@@ -233,9 +227,16 @@ public class Satellite extends Thread {
         }
         else
         {
-            // TODO Make sure the path to the tool class string 
-            String pathToolClass = "../" + toolClassString; 
-            Class operationClass = classLoader.loadClass(pathToolClass);
+            System.out.println("Working Directory = " +
+              System.getProperty("user.dir"));
+            
+            String pathToolClass = "src." + toolClassString; 
+            
+            File folder = new File("src/appserver/job/impl");
+            File[] listOfFiles = folder.listFiles();
+            
+            Class operationClass = classLoader.loadClass(toolClassString);
+            System.out.println("Loaded it");
             tool = (Tool) operationClass.newInstance();
             this.toolsCache.put(toolClassString, tool);
         }
@@ -245,7 +246,11 @@ public class Satellite extends Thread {
     public static void main(String[] args) throws FileNotFoundException {
         // start the satellite
         Satellite satellite;
-        satellite = new Satellite(args[0], args[1], args[2]);
+        System.out.println(args.length);
+        String temp1 = "config/Satellite.Earth.properties";
+        String temp2 = "config/WebServer.properties";
+        String temp3 = "config/Server.properties";
+        satellite = new Satellite(temp1, temp2, temp3);
         satellite.run();
     }
 }
