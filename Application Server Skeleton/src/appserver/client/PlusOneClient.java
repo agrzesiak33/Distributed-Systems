@@ -68,7 +68,9 @@ public class PlusOneClient implements MessageTypes{
         if(args.length == 1) {
             client = new PlusOneClient(args[0]);
         } else {
-            client = new PlusOneClient("../../config/Server.properties");
+            //TODO get rid of this next line
+            client = new PlusOneClient("../../config/Satellite.Earth.properties");
+           // client = new PlusOneClient("../../config/Server.properties");
         }
         client.run();
     }  

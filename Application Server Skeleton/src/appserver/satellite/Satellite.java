@@ -129,7 +129,7 @@ public class Satellite extends Thread {
         
         // create server socket
         // ---------------------------------------------------------------
-        ServerSocket incoming = null;
+        ServerSocket incoming;
         try{
              incoming = new ServerSocket(this.satelliteInfo.getPort());
         }catch(IOException e){
@@ -147,7 +147,7 @@ public class Satellite extends Thread {
                 new Thread(new SatelliteThread(socket, this)).start();
             } 
         }catch(IOException e){
-            
+            System.out.println(e.toString());
         }        
     }
 
@@ -198,15 +198,7 @@ public class Satellite extends Thread {
                     default:
                         System.err.println("[SatelliteThread.run] Warning: Message type not implemented");
                 }
-            } catch (IOException ex) {
-                Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (ClassNotFoundException ex) {
-                Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (UnknownToolException ex) {
-                Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (InstantiationException ex) {
-                Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (IllegalAccessException ex) {
+            } catch (IOException | ClassNotFoundException | UnknownToolException | InstantiationException | IllegalAccessException ex) {
                 Logger.getLogger(Satellite.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
@@ -219,26 +211,18 @@ public class Satellite extends Thread {
      */
     public Tool getToolObject(String toolClassString) throws UnknownToolException, ClassNotFoundException, InstantiationException, IllegalAccessException {
         
-        
         Tool tool;
         if(this.toolsCache.containsKey(toolClassString))
         {
             tool = (Tool) this.toolsCache.get(toolClassString);
+            System.out.println("Loaded " + toolClassString + " from cache");
         }
         else
-        {
-            System.out.println("Working Directory = " +
-              System.getProperty("user.dir"));
-            
-            String pathToolClass = "src." + toolClassString; 
-            
-            File folder = new File("src/appserver/job/impl");
-            File[] listOfFiles = folder.listFiles();
-            
+        {           
             Class operationClass = classLoader.loadClass(toolClassString);
-            System.out.println("Loaded it");
             tool = (Tool) operationClass.newInstance();
             this.toolsCache.put(toolClassString, tool);
+            System.out.println("Stored " + toolClassString + " in cache");
         }
         return tool;
     }
@@ -246,11 +230,17 @@ public class Satellite extends Thread {
     public static void main(String[] args) throws FileNotFoundException {
         // start the satellite
         Satellite satellite;
-        System.out.println(args.length);
-        String temp1 = "config/Satellite.Earth.properties";
-        String temp2 = "config/WebServer.properties";
-        String temp3 = "config/Server.properties";
-        satellite = new Satellite(temp1, temp2, temp3);
-        satellite.run();
+        if(args.length == 0)
+        {
+            String temp1 = "config/Satellite.Earth.properties";
+            String temp2 = "config/WebServer.properties";
+            String temp3 = "config/Server.properties";
+            satellite = new Satellite(temp1, temp2, temp3);
+        }
+        else
+        {
+            satellite = new Satellite(args[0], args[1], args[2]);
+        }
+        satellite.start();
     }
 }
