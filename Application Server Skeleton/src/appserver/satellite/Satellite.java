@@ -141,7 +141,8 @@ public class Satellite extends Thread {
         // ---------------------------------------------------------------
         try{
             Socket socket;
-           while(true)
+            System.out.println("Listening for Client connections on port " + this.satelliteInfo.getPort());
+            while(true)
             {
                 socket = incoming.accept();
                 new Thread(new SatelliteThread(socket, this)).start();
@@ -232,10 +233,8 @@ public class Satellite extends Thread {
         Satellite satellite;
         if(args.length == 0)
         {
-            String temp1 = "config/Satellite.Earth.properties";
-            String temp2 = "config/WebServer.properties";
-            String temp3 = "config/Server.properties";
-            satellite = new Satellite(temp1, temp2, temp3);
+            System.err.println("Not enough of arguements");
+            return;
         }
         else
         {
