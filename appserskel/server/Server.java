@@ -4,12 +4,13 @@ import appserver.comm.Message;
 import static appserver.comm.MessageTypes.JOB_REQUEST;
 import static appserver.comm.MessageTypes.REGISTER_SATELLITE;
 import appserver.comm.ConnectivityInfo;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Properties;
+import java.util.Scanner;
+
 import utils.PropertyHandler;
 
 /**
@@ -27,9 +28,42 @@ public class Server {
 
         // create satellite manager and load manager
         // ...
+        satelliteManager = new SatelliteManager();
+        loadManager = new LoadManager();
         
         // read server properties and create server socket
         // ...
+        String directory = System.getProperty("user.dir");
+        File propertiesFile = new File(directory + "\\config\\"+ serverPropertiesFile);
+        String host ="";
+        int port = 0;
+        String doc_root = "";
+
+        try {
+            Scanner sc = new Scanner(propertiesFile);
+            while (sc.hasNext())
+            {
+                String[] temp = sc.nextLine().split("\t");
+                if (temp[0].equalsIgnoreCase("HOST"))
+                {
+                    host = temp[1];
+                }
+                else if (temp[0].equalsIgnoreCase("PORT"))
+                {
+                    port = Integer.parseInt(temp[1]);
+                }
+                else if(temp[0].equalsIgnoreCase("DOC_ROOT"))
+                {
+                    doc_root = temp[1];
+                }
+            }
+            serverSocket = new ServerSocket(port); //server socket created.
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void run() {
