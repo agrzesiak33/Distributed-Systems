@@ -110,15 +110,18 @@ public class Server {
                     
                     //Satellite tempSatellite = (Satellite) message.getContent();
                     
+                	ConnectivityInfo tempCI = (ConnectivityInfo) message.getContent(); // ?????????????????
+                	
                     // register satellite
-                    
                     synchronized (Server.satelliteManager) {
                         // ...
+                    	Server.satelliteManager.registerSatellite(tempCI);
                     }
 
                     // add satellite to loadManager
                     synchronized (Server.loadManager) {
                         // ...
+                    	Server.loadManager.satelliteAdded(tempCI.getName());
                     }
 
                     break;
@@ -127,15 +130,19 @@ public class Server {
                     System.err.println("\n[ServerThread.run] Received job request");
 
                     String satelliteName = null;
+                    ConnectivityInfo ci = null;
                     synchronized (Server.loadManager) {
                         // get next satellite from load manager
                         // ...
+                    	satelliteName = Server.loadManager.nextSatellite();
                         
                         // get connectivity info for next satellite from satellite manager
                         // ...
+                    	ci = server.satelliteManager.getSatelliteForName(satelliteName);
                     }
 
-                    Socket satellite = null;
+                    //Socket satellite = null;
+                    Socket satellite = new Socket(ci.getHost(), ci.getPort());
                     // connect to satellite
                     // ...
 

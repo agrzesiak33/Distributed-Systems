@@ -17,20 +17,28 @@ public class LoadManager {
 
     public void satelliteAdded(String satelliteName) {
         // add satellite
-        // ...
+    	this.satellites.add(satelliteName);
     }
 
 
     public String nextSatellite() throws Exception {
         
-        int numberSatellites;
+        //int numberSatellites;
         
         synchronized (satellites) {
             // implement policy that returns the satellite name according to a round robin methodology
-            // ...
+        	if (this.satellites.size() <= 0) {
+        		return "Error - No registered satellites";
+        	}
+        	String toReturn;
+        	if (this.lastSatelliteIndex == -1) {
+        		toReturn = this.satellites.get(0);
+        	} else {
+        		toReturn = this.satellites.get(this.lastSatelliteIndex);
+        	}
+        	this.lastSatelliteIndex = (this.lastSatelliteIndex + 1) % this.satellites.size();
         }
 
-        return // ... name of satellite who is supposed to take job
-        ;
+        return toReturn;// ... name of satellite who is supposed to take job
     }
 }

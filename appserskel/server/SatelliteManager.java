@@ -14,14 +14,14 @@ public class SatelliteManager {
     static private Hashtable<String, ConnectivityInfo> satellites = null;
 
     public SatelliteManager() {
-        // ..
+    	this.satellites = new HashTable<String, ConnectivityInfo>();
     }
 
     public void registerSatellite(ConnectivityInfo satelliteInfo) {
-        // ...
+    	this.satellites.put(satelliteInfo.getName(), satelliteInfo);
     }
 
     public ConnectivityInfo getSatelliteForName(String satelliteName) {
-        // ..
+    	return this.satellites.get(satelliteName);
     }
 }
